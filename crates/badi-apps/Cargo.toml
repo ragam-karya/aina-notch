@@ -1,0 +1,37 @@
+[package]
+name = "badi-apps"
+description = "Work apps through Composio (project key over REST, Connect key over MCP), Google Drive upload, Google Calendar, and the media now-playing/control for the notch (port of src/workApps.js and src/media.js)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+regex.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+md-5 = "0.10"
+base64 = "0.22"
+badi-agent = { path = "../badi-agent" }
+badi-net = { path = "../badi-net" }
+badi-core = { path = "../badi-core" }
+chrono.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Foundation",
+    "Devices_Geolocation",
+    "Media",
+    "Media_Control",
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Storage_Streams",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Variant",
+] }
+
+[dev-dependencies]
+badi-store = { path = "../badi-store" }

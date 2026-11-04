@@ -1,0 +1,23 @@
+[package]
+name = "badi-agent"
+description = "Kerjakan untukku (the Brain): the agent loop, the computer toolset on Windows, file tools with their guard, apps and links, and the browser extension bridge (port of src/brain/*, src/fileOps.js, the guard in src/agentTools.js)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+regex.workspace = true
+fancy-regex = "0.14"
+chrono.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+tungstenite = "0.26"
+badi-input = { path = "../badi-input" }
+badi-screen = { path = "../badi-screen" }
+badi-uia = { path = "../badi-uia" }
+badi-llm = { path = "../badi-llm" }
+badi-net = { path = "../badi-net" }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_Com", "Win32_Storage_Packaging_Appx"] }

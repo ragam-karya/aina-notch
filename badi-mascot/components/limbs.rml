@@ -1,0 +1,81 @@
+<Rive version="1" kind="fragment">
+    <!--
+        Limb components, in the body's translucent material.
+        Origin is the joint (shoulder / hip), so rotating the placement swings the limb.
+        One Arm and one Leg artboard; hosts mirror the right side with scaleX="-1".
+    -->
+
+    <!-- ================= ARM ================= -->
+    <Artboard styleId="0:1495" isComponent="true" originX="0.5" originY="0.5" defaultStateMachineId="0:1490"
+              x="840" y="600" width="44" height="96" name="Arm" id="0:1400">
+        <LayoutComponentStyle name="Artboard Style" id="0:1495"/>
+
+
+        <StateMachine name="Arm SM" id="0:1490">
+            <StateMachineLayer name="Base" id="0:1491">
+                <AnyState x="400" y="0"/>
+                <ExitState x="560" y="0"/>
+                <EntryState x="0" y="0"/>
+            </StateMachineLayer>
+        </StateMachine>
+
+        <Shape x="-4" y="22" rotation="0.12" name="Arm Glint" id="0:1410">
+            <Ellipse width="5" height="12" name="Path"/>
+            <Fill fillRule="clockwise" name="Fill">
+                <SolidColor colorValue="CCFFFFFF" name="Color"/>
+                <Feather strength="2" name="Feather"/>
+            </Fill>
+        </Shape>
+        <Shape x="0" y="20" name="Arm Shape" id="0:1420">
+            <Rectangle width="22" height="42" cornerRadiusTL="11" name="Path"/>
+            <Fill name="Fill">
+                <LinearGradient startX="0" startY="-21" endX="0" endY="21" name="Gradient">
+                    <GradientStop colorValue="FFEDEAFC" position="0"/>
+                    <GradientStop colorValue="FFDCE4FA" position="0.5"/>
+                    <GradientStop colorValue="FFA6E3F2" position="1"/>
+                </LinearGradient>
+            </Fill>
+            <Stroke thickness="1.2" name="Edge">
+                <SolidColor colorValue="99B8C6EE" name="Color"/>
+            </Stroke>
+        </Shape>
+    </Artboard>
+
+    <!-- ================= LEG ================= -->
+    <Artboard styleId="0:1595" isComponent="true" originX="0.5" originY="0.5" defaultStateMachineId="0:1590"
+              x="920" y="600" width="48" height="56" name="Leg" id="0:1500">
+        <LayoutComponentStyle name="Artboard Style" id="0:1595"/>
+
+
+        <StateMachine name="Leg SM" id="0:1590">
+            <StateMachineLayer name="Base" id="0:1591">
+                <AnyState x="400" y="0"/>
+                <ExitState x="560" y="0"/>
+                <EntryState x="0" y="0"/>
+            </StateMachineLayer>
+        </StateMachine>
+
+        <Shape x="-5" y="10" name="Leg Glint" id="0:1510">
+            <Ellipse width="9" height="4" name="Path"/>
+            <Fill fillRule="clockwise" name="Fill">
+                <SolidColor colorValue="CCFFFFFF" name="Color"/>
+                <Feather strength="2" name="Feather"/>
+            </Fill>
+        </Shape>
+        <Shape x="0" y="14" name="Foot" id="0:1520">
+            <Ellipse width="32" height="24" name="Path"/>
+            <Fill name="Fill">
+                <LinearGradient startX="0" startY="-12" endX="0" endY="12" name="Gradient">
+                    <GradientStop colorValue="FFDCE4FA" position="0"/>
+                    <GradientStop colorValue="FF9FDDF2" position="1"/>
+                </LinearGradient>
+            </Fill>
+            <Stroke thickness="1.2" name="Edge">
+                <SolidColor colorValue="99B8C6EE" name="Color"/>
+            </Stroke>
+        </Shape>
+    </Artboard>
+
+    <ComponentAsset artboardId="0:1400" name="Arm"/>
+    <ComponentAsset artboardId="0:1500" name="Leg"/>
+</Rive>

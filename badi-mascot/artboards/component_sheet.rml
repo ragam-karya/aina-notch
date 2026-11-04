@@ -1,0 +1,62 @@
+<Rive version="1" kind="fragment">
+    <!--
+        Component sheet: every component laid out on its own for review.
+        Reference only; the app uses Expanded and Compact.
+    -->
+    <Artboard styleId="0:409" defaultStateMachineId="0:407" x="600" y="0" width="1000" height="380" name="ComponentSheet" id="0:400">
+        <LayoutComponentStyle name="Artboard Style" id="0:409"/>
+
+        <Fill name="Background">
+            <SolidColor colorValue="FFF5F6FB" name="Color"/>
+        </Fill>
+
+        <StateMachine name="Sheet SM" id="0:407">
+            <StateMachineLayer name="Base" id="0:408">
+                <AnyState x="400" y="0"/>
+                <ExitState x="560" y="0"/>
+                <EntryState x="0" y="0"/>
+            </StateMachineLayer>
+        </StateMachine>
+
+        <!-- Body (effects are shown per expression in ExpressionSheet) -->
+        <NestedArtboard artboardId="0:1000" x="170" y="200" name="Body" id="0:411"/>
+
+        <!-- Face parts -->
+        <NestedArtboard artboardId="0:1200" x="440" y="110" name="Brows" id="0:420"/>
+        <NestedArtboard artboardId="0:1100" x="440" y="190" name="Eyes" id="0:421"/>
+        <NestedArtboard artboardId="0:1300" x="405" y="275" name="Mouth" id="0:422"/>
+        <NestedArtboard artboardId="0:1300" isStateful="true" x="480" y="275" name="Mouth Talking" id="0:423">
+            <ViewModelInstance viewModelId="0:2200" exports="true" name="Speaking Pose" id="0:424">
+                <ViewModelInstanceEnum propertyValue="0:2004" viewModelPropertyId="0:2201" name="expression"/>
+                <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:2203" name="audioLevel"/>
+            </ViewModelInstance>
+            <NestedStateMachine animationId="0:1390" name="SM"/>
+        </NestedArtboard>
+
+        <!-- Limbs -->
+        <NestedArtboard artboardId="0:1400" x="600" y="140" name="Arm" id="0:430"/>
+        <NestedArtboard artboardId="0:1400" x="660" y="140" scaleX="-1" name="Arm Mirrored" id="0:431"/>
+        <NestedArtboard artboardId="0:1500" x="600" y="260" name="Leg" id="0:432"/>
+        <NestedArtboard artboardId="0:1500" x="660" y="260" scaleX="-1" name="Leg Mirrored" id="0:433"/>
+
+        <!-- Full assembly with limbs shown -->
+        <Node x="850" y="190" scaleX="0.8" scaleY="0.8" name="Assembled" id="0:440">
+            <Node x="0" y="-4" name="Face" id="0:441">
+                <NestedArtboard artboardId="0:1200" x="0" y="-38" name="Brows" id="0:442"/>
+                <NestedArtboard artboardId="0:1100" x="0" y="-2" name="Eyes" id="0:443"/>
+                <NestedArtboard artboardId="0:1300" isStateful="true" x="0" y="26" name="Mouth" id="0:444">
+                    <ViewModelInstance viewModelId="0:2200" exports="true" name="Speaking Pose" id="0:450">
+                        <ViewModelInstanceEnum propertyValue="0:2004" viewModelPropertyId="0:2201" name="expression"/>
+                        <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:2203" name="audioLevel"/>
+                    </ViewModelInstance>
+                    <NestedStateMachine animationId="0:1390" name="SM"/>
+                </NestedArtboard>
+            </Node>
+            <NestedArtboard artboardId="0:1000" name="Body" id="0:445"/>
+            <NestedArtboard artboardId="0:1400" x="-100" y="18" rotation="0.55" name="Arm L" id="0:446"/>
+            <NestedArtboard artboardId="0:1400" x="98" y="6" rotation="-0.55" scaleX="-1" name="Arm R" id="0:447"/>
+            <NestedArtboard artboardId="0:1500" x="-36" y="96" name="Leg L" id="0:448"/>
+            <NestedArtboard artboardId="0:1500" x="34" y="98" scaleX="-1" name="Leg R" id="0:449"/>
+        </Node>
+    </Artboard>
+</Rive>

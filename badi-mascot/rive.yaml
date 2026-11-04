@@ -1,0 +1,7 @@
+name: BADI_Mascot
+main: Expanded
+logs:
+  file: build/rive.log
+  problems: build/problems.log
+exclude:
+  - tools

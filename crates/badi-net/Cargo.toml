@@ -1,0 +1,8 @@
+[package]
+name = "badi-net"
+description = "Where Badi's calls go: straight to the providers with the user's keys, or through Badi Cloud with the account token; plus the task headers the cloud bills by"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

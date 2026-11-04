@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Every Badi window: events (window.badi.on) and the bridge commands. Which channels a page may use is checked by the same allowlists v1 had (shim.js and ipc.rs).",
+  "windows": ["overlay-*", "settings", "agents", "ask", "drop"],
+  "permissions": ["core:default"]
+}
