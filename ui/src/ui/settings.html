@@ -1,0 +1,431 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+<title>aina · Settings</title>
+<link rel="stylesheet" href="fonts.css" /><link rel="stylesheet" href="style.css" />
+<style>
+  /* Layout: a side navigation (settingsnav.js) next to the sections; in a narrow window the nav
+     becomes a row of chips over them. */
+  body { display: grid; grid-template-columns: 224px minmax(0, 1fr); grid-template-rows: 1fr auto; min-height: 100vh; }
+  .side { grid-row: 1 / span 2; position: sticky; top: 0; height: 100vh; overflow: auto; box-sizing: border-box; padding: 20px 12px; border-right: 1px solid var(--line); background: var(--panel); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .05em; padding: 2px 10px 18px; }
+  .brand .logo { height: 28px; width: auto; display: block; }
+  #sideNav { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; color: var(--muted); text-decoration: none; font-weight: 500; transition: background .18s ease, color .18s ease; }
+  .nav-item:hover { background: var(--chip); color: var(--text); }
+  .nav-item .ico { flex: none; transition: transform .35s var(--ease-pop); }
+  .nav-item:hover .ico { transform: scale(1.12); }
+  .nav-item.on { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); }
+  .nav-item.on::before { content: ''; position: absolute; left: -12px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+  main { padding: 30px 40px 48px; max-width: 760px; width: 100%; box-sizing: border-box; }
+  main > h1 { font-size: 24px; }
+  main h2 { display: flex; align-items: center; gap: 9px; font-size: 15px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 36px 0 10px; scroll-margin-top: 18px; }
+  main h2 .ico { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 8px; padding: 5px; box-sizing: content-box; }
+  /* The cards settle in one after another when the window opens. */
+  /* Only once the window is visible (settingsnav.js): a window built hidden throttles animations
+     and would otherwise show half-faded cards. */
+  body.intro main > .card, body.intro main > section > .card { animation: card-in .45s var(--ease-out) both; }
+  body.intro main > .card:nth-of-type(2) { animation-delay: .04s; }
+  body.intro main > .card:nth-of-type(3) { animation-delay: .08s; }
+  body.intro main > .card:nth-of-type(n+4) { animation-delay: .12s; }
+  @keyframes card-in { from { opacity: 0; transform: translateY(8px); } }
+  @media (max-width: 700px) {
+    body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto; }
+    .side { grid-row: auto; height: auto; z-index: 5; padding: 8px 10px; border-right: 0; border-bottom: 1px solid var(--line); }
+    .brand { display: none; }
+    #sideNav { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+    .nav-item { white-space: nowrap; padding: 6px 10px; }
+    .nav-item.on::before { display: none; }
+    main { padding: 22px 18px 40px; }
+    main h2 { scroll-margin-top: 64px; }
+  }
+  .keys { display: grid; grid-template-columns: 1fr; gap: 2px; }
+  .pomo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 12px; }
+  .pomo-grid label { font-weight: 500; font-size: 12.5px; color: var(--muted); }
+  .pomo-grid input { margin-top: 4px; }
+  input[type=number] { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; }
+  footer { grid-column: -2; position: sticky; bottom: 0; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(12px); padding: 12px 40px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  footer .status { margin: 0 auto 0 0; }
+  footer #save { min-width: 110px; }
+  .apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; margin-top: 10px; }
+  .app { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; }
+  .app .name { flex: 1; }
+  .app .state { font-size: 12px; opacity: 0.7; }
+  .app.linked .state { color: #1fbf63; opacity: 1; }
+  /* Still being built: dimmed, with a "Segera" tag. */
+  .app.soon .name { opacity: 0.55; }
+  .app.soon .state { opacity: 1; }
+  .app .soon-tag { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, #8b7cff 22%, transparent); color: #a99cff; }
+  .app .unlink { font-size: 12px; padding: 2px 8px; }
+  .card h3 { font-size: 14px; margin: 18px 0 4px; }
+  .steps { margin: 6px 0 10px; padding-left: 20px; line-height: 1.7; }
+  .mini { font-size: 12px; padding: 1px 8px; margin-left: 4px; }
+  #extension { border-radius: 8px; transition: box-shadow 0.4s; }
+  #extension.focus { box-shadow: 0 0 0 2px #2b8aff; }
+  code { font-size: 12px; user-select: all; word-break: break-all; }
+  .switch { position: relative; width: 36px; height: 20px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch span { position: absolute; inset: 0; border-radius: 10px; background: var(--line); cursor: pointer; transition: background 0.15s; }
+  .switch span::before { content: ''; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+  .switch input:checked + span { background: #2b8aff; }
+  .switch input:checked + span::before { transform: translateX(16px); }
+  .switch input:disabled + span { opacity: 0.5; cursor: default; }
+  .plans { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 10px 0; }
+  .plan { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+  .plan.current { border-color: #2b8aff; box-shadow: 0 0 0 1px #2b8aff inset; }
+  .plan .price { font-weight: 600; }
+  .plan .limits { font-size: 12px; opacity: 0.75; flex: 1; }
+  .plan .head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .plan .badge { font-size: 11px; font-weight: 600; color: #fff; background: #2b8aff; border-radius: 999px; padding: 1px 8px; }
+  .plan .credits { font-size: 13px; }
+  .plan button:disabled { opacity: 0.5; cursor: default; }
+  .credits-now { display: flex; align-items: baseline; gap: 8px; margin: 8px 0 2px; }
+  .credits-now b { font-size: 28px; line-height: 1; }
+  .buy-head { margin-top: 14px; }
+  .meter { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin: 2px 0 8px; }
+  .meter > i { display: block; height: 100%; background: #2b8aff; border-radius: 4px; transition: width 0.3s; }
+  .meter.warn > i { background: #ff8a3d; }
+  .meter.full > i { background: #e5484d; }
+  .prayer-results { display: grid; gap: 4px; margin: 6px 0 0; }
+  .prayer-results button { text-align: left; justify-content: flex-start; }
+</style>
+</head>
+<body>
+<aside class="side"><div class="brand"><img class="logo" src="../../assets/brand/aina-logo-dark.png" alt="aina" /></div><nav id="sideNav"></nav></aside>
+<main>
+  <h1>aina</h1>
+  <p class="hint">Tahan <kbd id="pttHint">Ctrl+Alt</kbd> lalu bicara tentang apa pun di layar. Tahan <kbd id="dictHint">Ctrl+Win</kbd> <span id="dictWhat">untuk mendikte teks ke field yang sedang aktif</span>. <kbd>Esc</kbd> menghentikan jawaban.</p>
+
+  <section id="cloudSection" hidden>
+  <h2 data-icon="cloud">Akun aina Cloud</h2>
+  <div class="card">
+    <div id="cloudOut">
+      <p class="hint">Notch gratis tanpa akun. Masuk dengan akun Google untuk memakai AI aina: dapat <b id="cloudFreeCredits">10 kredit gratis</b> sekali, lalu langganan atau Top-Up. Tidak ada API key yang perlu diisi.</p>
+      <p><button type="button" id="cloudLogin">Masuk dengan Google</button></p>
+      <p class="hint">Browser terbuka untuk login Google. Setelah berhasil, aina terbuka lagi dan langsung masuk.</p>
+      <p class="hint">Dengan masuk, kamu setuju dengan <a href="#" data-open="/ketentuan">Ketentuan Layanan</a> dan <a href="#" data-open="/privasi">Kebijakan Privasi</a>. Pertanyaan, suara, dan tangkapan layar melewati server aina Cloud ke penyedia AI dan tidak disimpan.</p>
+    </div>
+    <div id="cloudIn" hidden>
+      <p><b id="cloudWho"></b> · <span id="cloudPlan"></span> <span class="hint" id="cloudUntil"></span></p>
+      <div class="credits-now"><b id="cloudCredits">0</b><span>kredit</span><span class="hint" id="cloudCreditsDetail"></span></div>
+      <div class="meter" id="cloudSubBar" hidden><i></i></div>
+      <p id="cloudRenew" hidden><span class="hint" id="cloudRenewText"></span> <button type="button" id="cloudRenewBtn"></button> <button type="button" id="cloudCardDrop">Hapus kartu</button></p>
+      <p class="hint" id="cloudBetaNote" hidden>Kredit beta dipakai untuk semua fitur: tanya layar, suara ElevenLabs, realtime, dikte, kerjakan, dan Sprite. Setelah habis, aina berhenti menjawab. Terima kasih sudah ikut mencoba!</p>
+      <div id="cloudBuy">
+        <label class="buy-head">Langganan bulanan <span class="hint">· kredit termurah, siklus 30 hari; sisa kredit hangus di akhir siklus. Bayar dengan kartu kredit: diperpanjang otomatis, bisa dibatalkan kapan saja. QRIS, transfer, e-wallet: sekali bayar.</span></label>
+        <div class="plans" id="cloudSubs"></div>
+        <p class="hint" id="cloudSubNote"></p>
+        <label class="buy-head">Top-Up <span class="hint">· kredit tambahan yang tidak pernah hangus</span></label>
+        <div class="plans" id="cloudTopups"></div>
+        <div class="plans" id="cloudEnterprise"></div>
+      </div>
+      <p>
+        <button type="button" id="cloudLogout">Keluar</button>
+        <button type="button" class="danger" id="cloudDelete">Hapus akun</button>
+      </p>
+      <p class="hint">Kredit dipotong sesuai pemakaian nyata: tanya layar biasa ±1 kredit, tugas panjang lebih banyak. Kredit langganan dipakai lebih dulu, lalu kredit Top-Up dan gratis. Semua paket dapat semua fitur. <span id="cloudKeysNote">Selama masuk, API key di bawah tidak dipakai. </span><a href="#" data-open="/privasi">Privasi</a> · <a href="#" data-open="/ketentuan">Ketentuan</a></p>
+    </div>
+    <div class="status" id="cloudStatus"></div>
+  </div>
+  </section>
+
+  <h2 data-icon="globe">Bahasa &amp; sapaan</h2>
+  <div class="card">
+    <label for="userName">Nama panggilanmu (opsional)</label>
+    <input type="text" id="userName" maxlength="30" placeholder="misalnya: Sari" autocomplete="off" />
+    <p class="hint">Sesekali aina memanggilmu dengan nama ini, misalnya saat menyapa. Disimpan hanya di laptop ini.</p>
+    <label for="language">Bahasa aina</label>
+    <select id="language">
+      <option value="auto">Ikuti bahasa yang kamu pakai (default)</option>
+      <option value="id">Selalu Bahasa Indonesia</option>
+      <option value="en">Always English</option>
+    </select>
+    <p class="hint">Dipakai untuk jawaban, tulisan di layar, pengenalan suara, dan pesan aina. Dengan "ikuti", status loading dan filler juga memakai bahasa pertanyaanmu.</p>
+  </div>
+
+  <h2 id="keysHead" data-icon="key">API keys</h2>
+  <div class="card keys" id="keysCard">
+    <label for="anthropicApiKey">Anthropic API key <span class="hint" id="anthropicState"></span></label>
+    <div class="row">
+      <input type="password" id="anthropicApiKey" placeholder="sk-ant-…" autocomplete="off" />
+      <button id="testAnthropic">Tes</button>
+    </div>
+    <p class="hint">Dipakai untuk melihat layar dan menjawab.</p>
+    <label for="openaiApiKey">OpenAI API key <span class="hint" id="openaiState"></span></label>
+    <input type="password" id="openaiApiKey" placeholder="sk-…" autocomplete="off" />
+    <p class="hint">Dipakai untuk mengubah suara jadi teks (dan suara OpenAI jika dipilih). Key disimpan terenkripsi dengan Windows DPAPI.</p>
+    <div class="status" id="testStatus"></div>
+  </div>
+
+  <h2 data-icon="cpu">Model</h2>
+  <div class="card">
+    <label for="model">Model untuk jawaban &amp; melihat layar</label>
+    <select id="model">
+      <option value="claude-opus-5">Claude Opus 5 (default, tanpa thinking, lebih cepat)</option>
+      <option value="claude-opus-5-5">Claude Opus 5.5 (selalu thinking, lebih lambat)</option>
+      <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (lebih cepat)</option>
+      <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+      <option value="claude-fable-5-1">Claude Fable 5.1</option>
+    </select>
+    <label for="brainModel">Model untuk "kerjakan untukku" &amp; aina latar belakang</label>
+    <select id="brainModel">
+      <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (default, setengah harga Opus)</option>
+      <option value="claude-opus-5-5">Claude Opus 5.5 (paling teliti, lebih mahal)</option>
+    </select>
+    <label for="effort">Effort</label>
+    <select id="effort">
+      <option value="low">low: jawaban tercepat (disarankan untuk suara)</option>
+      <option value="medium">medium</option>
+      <option value="high">high</option>
+    </select>
+  </div>
+
+  <h2 data-icon="mic">Cara ngobrol</h2>
+  <div class="card">
+    <label for="voiceEngine">Mesin suara</label>
+    <select id="voiceEngine">
+      <option value="classic">Klasik (default): dengar → Claude → suara</option>
+      <option value="realtime">Realtime: ngobrol dua arah, bisa dipotong dengan suara, lebih mahal</option>
+    </select>
+    <p class="hint">Tahan tombol bicara untuk satu pertanyaan. Tekan sekali (atau ucapkan "Hey aina") untuk mulai ngobrol: aina terus mendengarkan, kamu bisa memotongnya kapan saja, dan sesi berakhir saat kamu pamit, tekan Esc, atau diam sebentar. Untuk melihat layar, aina tetap memakai Claude.</p>
+    <div id="realtimeBox">
+      <label for="realtimeVoice">Suara realtime</label>
+      <select id="realtimeVoice">
+        <option value="marin">Marin</option>
+        <option value="cedar">Cedar</option>
+        <option value="alloy">Alloy</option>
+        <option value="sage">Sage</option>
+        <option value="verse">Verse</option>
+      </select>
+      <label for="bargeIn">Potong aina dengan suara</label>
+      <select id="bargeIn">
+        <option value="low">Rendah: hanya suara jelas yang memotong (default)</option>
+        <option value="medium">Sedang: lebih peka</option>
+        <option value="off">Mati: potong hanya dengan tombol atau Esc</option>
+      </select>
+      <label for="realtimeIdleSec">Akhiri obrolan setelah diam</label>
+      <select id="realtimeIdleSec">
+        <option value="15">15 detik</option>
+        <option value="30">30 detik</option>
+        <option value="60">1 menit</option>
+      </select>
+      <p class="hint">Mesin realtime memakai OpenAI API key dan kira-kira $0,02–0,04 per menit ngobrol (gpt-realtime-2.1-mini). Suara hanya dikirim saat kamu menahan tombol atau selama sesi ngobrol, dan tidak disimpan.</p>
+    </div>
+  </div>
+
+  <h2 data-icon="volume">Suara</h2>
+  <div class="card">
+    <label for="tts">Baca jawaban dengan suara</label>
+    <select id="tts">
+      <option value="elevenlabs">ElevenLabs (default, paling cepat dan stabil)</option>
+      <option value="openai">Suara OpenAI (kadang lambat dari server)</option>
+      <option value="system">Suara Windows (gratis, offline)</option>
+      <option value="off">Mati (teks saja)</option>
+    </select>
+    <div id="elevenlabsBox">
+      <div id="elevenKeyBox">
+      <label for="elevenlabsApiKey">ElevenLabs API key <span class="hint" id="elevenlabsState"></span></label>
+      <input type="password" id="elevenlabsApiKey" placeholder="sk_…" autocomplete="off" />
+      </div>
+      <label for="elevenlabsVoice">Voice ID</label>
+      <input type="text" id="elevenlabsVoice" autocomplete="off" />
+      <p class="hint">aina selalu memakai satu suara ini untuk semua jawaban, sapaan dan filler. Key disimpan terenkripsi.</p>
+    </div>
+    <div id="systemVoiceBox">
+      <label for="systemVoice">Suara Windows</label>
+      <select id="systemVoice"></select>
+      <p class="hint" id="voiceHint"></p>
+    </div>
+    <div id="openaiVoiceBox">
+      <label for="openaiVoice">Suara OpenAI</label>
+      <select id="openaiVoice">
+        <option value="alloy">alloy (cepat, disarankan)</option><option value="shimmer">shimmer (cepat)</option><option value="ballad">ballad (cepat)</option>
+        <option>marin</option><option>cedar</option><option>ash</option><option>coral</option><option>echo</option><option>sage</option><option>verse</option>
+      </select>
+      <p class="hint">Beberapa suara OpenAI kadang lambat sekali dari server. Kalau suara pilihanmu belum siap dalam 3,5 detik, aina otomatis memakai alloy untuk sementara.</p>
+    </div>
+  </div>
+
+  <h2 data-icon="pointer">Kontrol komputer</h2>
+  <div class="card">
+    <label class="check"><input type="checkbox" id="computerControl" /> Izinkan aina mengerjakan tugas di komputer ini (membuka aplikasi, mengklik, mengetik, riset web)</label>
+    <p class="hint">Contoh: "buka Spotify, putar lofi" atau "cari berita keuangan hari ini lalu buat ringkasannya". aina minta izin dulu sebelum mengirim, membeli, atau menghapus sesuatu, dan tidak pernah mengetik kata sandi. <kbd>Esc</kbd> menghentikannya.</p>
+    <label class="check"><input type="checkbox" id="agentFileAccess" /> Izinkan aina mengatur file dan folder kamu tanpa bertanya dulu</label>
+    <p class="hint">Berlaku untuk "kerjakan untukku" dan aina latar belakang. Kalau mati, aina bertanya dulu lewat suara setiap kali mau membuat, mengedit, memindah, me-rename, atau menghapus sesuatu di luar folder kerjanya. Jawab "boleh", "boleh semua" (untuk sisa tugas itu) atau "jangan". File yang dihapus selalu masuk Recycle Bin, dan folder sistem, program, serta AppData tidak pernah disentuh.</p>
+    <label for="brainEffort">Ketelitian saat mengerjakan</label>
+    <select id="brainEffort">
+      <option value="low">low: tercepat dan termurah</option>
+      <option value="medium">medium (disarankan)</option>
+      <option value="high">high: paling teliti, lebih lambat</option>
+    </select>
+    <div id="extension">
+    <label>Ekstensi browser <span class="hint" id="extState"></span></label>
+    <p class="hint">Dengan ekstensi aina di Chrome atau Edge, aina membaca halaman web secara langsung, jadi klik di website lebih tepat dan lebih hemat. Ekstensi ini hanya tersambung ke aina di komputer ini lewat kode di bawah. Kalau browser sudah menawarkan ekstensi aina, aktifkan saja lalu lanjut ke langkah 4.</p>
+    <ol class="hint steps">
+      <li>Buka <b>chrome://extensions</b> (atau <b>edge://extensions</b>) di browser. <button id="extCopyUrl" class="mini">Salin alamat</button></li>
+      <li>Nyalakan <b>Developer mode</b>.</li>
+      <li>Klik <b>Load unpacked</b>, lalu pilih folder ekstensi. <button id="extFolder" class="mini">Buka folder ekstensi</button></li>
+      <li>Klik ikon aina di toolbar browser, lalu masukkan kode ini. Tanda <b>ON</b> artinya sudah tersambung.</li>
+    </ol>
+    <div class="row">
+      <input type="text" id="extCode" readonly style="font-size:20px;letter-spacing:6px;text-align:center;max-width:160px" />
+      <button id="extNewCode">Kode baru</button>
+    </div>
+    </div>
+  </div>
+
+  <h2 data-icon="grid">Aplikasi kerja</h2>
+  <div class="card" id="appsCard">
+    <div id="composioKeyBox">
+    <p class="hint">aina bisa memakai Gmail, Google Calendar/Drive/Docs/Sheets/Tasks, Outlook, Teams, Notion, Linear, Jira, ClickUp, HubSpot, Salesforce, Dropbox, GitHub dan Slack untukmu, misalnya "cek email penting hari ini" atau "jadwalkan meeting besok jam 10 dengan Sari". Koneksinya lewat <b>Composio</b>: daftar gratis di composio.dev, salin key-nya ke sini (key Composio Connect <b>ck_…</b> dari For You → Settings → Sessions &amp; API Key, atau Project API key <b>ak_…</b>), Simpan, lalu nyalakan aplikasinya.</p>
+    <label for="composioApiKey">Composio API key <span class="hint" id="composioState"></span></label>
+    <input type="password" id="composioApiKey" placeholder="ck_… atau ak_…" autocomplete="off" />
+    </div>
+    <p class="hint">Aplikasi kerja khusus akun berbayar (langganan, atau setelah membeli Top-Up). Untuk sekarang baru aplikasi Google; yang lain menyusul, ditandai <b>Segera</b>.</p>
+    <p class="hint">Login aplikasimu disimpan di server Composio, bukan di PC ini, dan isi email, kalender, atau dokumen yang dipakai aina lewat server Composio. Membaca tidak perlu izin. Sebelum mengirim, membuat, mengubah, atau menghapus sesuatu, aina bertanya dulu, kecuali kamu mengizinkan "mengatur tanpa bertanya" di Kontrol komputer.</p>
+    <p class="hint">Nyalakan saklar aplikasi yang boleh dipakai aina. Kalau belum tersambung, halaman login-nya terbuka di browser. Mematikan saklar membuat aina berhenti memakainya, tapi akunnya tetap tersambung. Pakai <b>Putuskan</b> untuk menghapus sambungannya.</p>
+    <div class="apps" id="apps"></div>
+    <div class="status" id="appsStatus"></div>
+
+    <div id="brandBox">
+    <h3>Login atas nama aina</h3>
+    <p class="hint">Biasanya halaman izin Google, Slack, dan lainnya menampilkan "Composio". Pakai OAuth app milikmu sendiri supaya yang tampil nama aplikasimu (misalnya aina). Hanya untuk Project API key (<b>ak_…</b>). Buat OAuth app di console penyedianya, isi redirect URI di bawah, lalu tempel Client ID dan Client Secret di sini. Secret-nya dikirim ke Composio dan tidak disimpan di PC ini.</p>
+    <p class="hint">Redirect URI: <code id="brandRedirect"></code> <button type="button" class="unlink" id="brandCopy">Salin</button></p>
+    <label for="brandWhich">Penyedia</label>
+    <select id="brandWhich"></select>
+    <p class="hint" id="brandConsole"></p>
+    <label for="brandClientId">Client ID</label>
+    <input type="text" id="brandClientId" autocomplete="off" />
+    <label for="brandSecret">Client Secret</label>
+    <input type="password" id="brandSecret" autocomplete="off" />
+    <p><button type="button" id="brandSave">Pasang</button></p>
+    <div class="apps" id="brands"></div>
+    <div class="status" id="brandStatus"></div>
+    <p class="hint">Setelah dipasang, aplikasi yang sudah tersambung perlu disambungkan ulang (Putuskan, lalu nyalakan lagi) supaya login lewat OAuth app-mu. Untuk Gmail, Google mewajibkan verifikasi aplikasi kalau dipakai orang lain. Selama mode Testing, tambahkan akunmu sebagai test user di Google Cloud Console.</p>
+    </div>
+  </div>
+
+  <h2 data-icon="notch">Notch</h2>
+  <div class="card">
+    <p class="hint">Arahkan mouse ke notch di tengah atas layar untuk melihat jam, timer, lagu yang diputar, tugas latar belakang yang jalan, pengingat, dan pintasan di bawah ini. Bilang "timer 25 menit", "pomodoro", "ingetin aku jam 3 meeting", atau "skip lagu". Untuk fokus di folder atau upload ke Google Drive, bilang "fokus di folder ini" atau "upload file ini ke Drive", lalu taruh folder atau file-nya di notch.</p>
+    <label for="notchShortcuts">Pintasan (satu per baris, maksimal 4): <b>Label = perintah</b></label>
+    <textarea id="notchShortcuts" rows="4" placeholder="Cek email penting = Cek email penting hari ini dan rangkum singkat."></textarea>
+    <label class="check"><input type="checkbox" id="focusSummary" /> Minta ringkasan singkat saat menyelesaikan fokus (opsional diisi)</label>
+    <label class="check"><input type="checkbox" id="focusDnd" /> Jangan ganggu selama fokus: tunda notifikasi tugas selesai dan upload di notch</label>
+    <label class="check"><input type="checkbox" id="notchLyrics" /> Tampilkan lirik lagu yang diputar di notch</label>
+    <p class="hint">Lirik tersinkron diambil dari LRCLIB (lrclib.net), layanan lirik gratis. Untuk itu aina mengirim judul, artis, album, dan durasi lagu yang sedang diputar ke LRCLIB. Liriknya hanya disimpan di memori selama lagu itu diputar.</p>
+  </div>
+
+  <h2 data-icon="timer">Pomodoro</h2>
+  <div class="card" id="pomodoroCard">
+    <p class="hint">Bilang "pomodoro" atau tekan Mulai di halaman timer notch. Perubahan di sini berlaku mulai fase berikutnya.</p>
+    <label for="pomoPreset">Preset</label>
+    <div class="row">
+      <select id="pomoPreset"></select>
+      <button type="button" id="pomoDelete" class="danger">Hapus preset</button>
+    </div>
+    <div class="pomo-grid">
+      <label>Fokus (menit)<input type="number" id="pomoFocus" min="1" max="180" /></label>
+      <label>Istirahat pendek<input type="number" id="pomoShort" min="1" max="60" /></label>
+      <label>Istirahat panjang<input type="number" id="pomoLong" min="1" max="90" /></label>
+      <label>Sesi fokus per siklus<input type="number" id="pomoSessions" min="1" max="12" /></label>
+      <label>Istirahat panjang tiap … sesi<input type="number" id="pomoLongEvery" min="1" max="12" /></label>
+    </div>
+    <label class="check"><input type="checkbox" id="pomoAuto" /> Mulai fase berikutnya otomatis</label>
+    <p class="hint">Kalau mati, fase berikutnya menunggu di notch sampai kamu tekan Mulai.</p>
+    <label class="check"><input type="checkbox" id="pomoNotify" /> Beri tahu saat fase selesai (bunyi, suara aina, dan notifikasi Windows)</label>
+    <label for="pomoName">Simpan pengaturan ini sebagai preset</label>
+    <div class="row">
+      <input type="text" id="pomoName" maxlength="24" placeholder="misalnya: Nulis pagi" autocomplete="off" />
+      <button type="button" id="pomoSave">Simpan preset</button>
+    </div>
+  </div>
+
+  <h2 data-icon="globe">Lokasi &amp; cuaca</h2>
+  <div class="card" id="locationCard">
+    <p class="hint">Cuaca di sisi kiri notch memakai lokasi ini, dan jadwal salat bisa ikut lokasi yang sama.</p>
+    <label for="locationMode">Lokasi</label>
+    <select id="locationMode">
+      <option value="auto">Otomatis dari lokasi laptop (bawaan)</option>
+      <option value="city">Pilih kota sendiri</option>
+    </select>
+    <div id="locAutoBox">
+      <p class="hint" id="locAutoState">Belum dideteksi.</p>
+      <button type="button" id="locDetect">Deteksi sekarang</button>
+    </div>
+    <div id="locCityBox">
+      <label for="locSearch">Kota</label>
+      <input type="text" id="locSearch" placeholder="ketik nama kota, misalnya Bekasi" autocomplete="off" />
+      <div class="prayer-results" id="locResults"></div>
+      <p class="hint" id="locChosen"></p>
+    </div>
+    <label class="check"><input type="checkbox" id="locationShare" /> Jadwal salat ikut lokasi ini (kecuali kota salat dipilih sendiri di Pengingat)</label>
+    <p class="hint">Cuaca dari Open-Meteo (open-meteo.com) dan nama tempat dari BigDataCloud, keduanya gratis tanpa akun. Yang dikirim hanya koordinat atau nama kota. Lokasi laptop tidak disimpan; hanya kota yang kamu pilih sendiri yang disimpan di PC ini.</p>
+  </div>
+
+  <h2 data-icon="bell">Pengingat</h2>
+  <div class="card" id="remindersCard">
+    <p class="hint">Halaman Pengingat di notch menggabungkan pengingat lokal, acara Google Calendar, dan jadwal salat. Halaman itu selalu dibuka dengan tampilan yang kamu pilih di sini; tombol tampilan di notch hanya untuk melihat sebentar.</p>
+    <div class="row">
+      <label>Tampilan awal
+        <select id="reminderView"><option value="agenda">Agenda (bawaan)</option><option value="timeline">Timeline</option><option value="calendar">Kalender</option></select>
+      </label>
+      <label>Kepadatan
+        <select id="reminderDensity"><option value="compact">Ringkas</option><option value="comfortable">Lega</option></select>
+      </label>
+    </div>
+    <label>Google Calendar</label>
+    <p class="hint" id="gcalState">Acara dari kalender yang kamu centang di Google Calendar ikut tampil. Sambungkan dan nyalakan Google Calendar di Aplikasi kerja. Pengingat lokal tetap di PC ini kecuali kamu memilih Google saat membuatnya. Kalau sinkron gagal, aina tidak mencoba lagi sendiri: tekan Coba lagi di notch.</p>
+    <button type="button" id="gcalGo">Buka Aplikasi kerja</button>
+    <label class="check" id="prayerSetup"><input type="checkbox" id="prayerEnabled" /> Jadwal salat: tampilkan dan ingatkan aku</label>
+    <div id="prayerBox">
+      <label for="prayerSearch">Kota atau kabupaten</label>
+      <input type="text" id="prayerSearch" placeholder="ketik minimal 3 huruf, misalnya Bekasi" autocomplete="off" />
+      <div class="prayer-results" id="prayerResults"></div>
+      <p class="hint" id="prayerChosen"></p>
+      <label for="prayerNotify">Notifikasi salat</label>
+      <select id="prayerNotify">
+        <option value="10">10 menit sebelum</option>
+        <option value="5">5 menit sebelum</option>
+        <option value="15">15 menit sebelum</option>
+        <option value="30">30 menit sebelum</option>
+        <option value="0">Tepat waktu</option>
+        <option value="-1">Mati</option>
+      </select>
+      <p class="hint">Jadwal resmi Kemenag (Imsak sampai Isya) dari api.myquran.com, diambil sebulan sekali lalu disimpan di PC ini. Yang dikirim hanya kota yang kamu pilih.</p>
+    </div>
+  </div>
+
+  <h2 data-icon="keyboard">Hotkey &amp; perilaku</h2>
+  <div class="card">
+    <label for="ptt">Tahan untuk bicara</label>
+    <select id="ptt">
+      <option value="Ctrl+Alt">Ctrl + Alt</option>
+      <option value="Ctrl+Shift">Ctrl + Shift</option>
+      <option value="Alt+Shift">Alt + Shift</option>
+      <option value="Ctrl+Meta">Ctrl + Win</option>
+    </select>
+    <label for="dict">Tahan untuk dikte</label>
+    <select id="dict">
+      <option value="Ctrl+Meta">Ctrl + Win</option>
+      <option value="Ctrl+Shift">Ctrl + Shift</option>
+      <option value="Alt+Meta">Alt + Win</option>
+      <option value="">Mati</option>
+    </select>
+    <label class="check"><input type="checkbox" id="wakeWord" /> Bangunkan dengan suara: ucapkan <b>"Hey aina"</b>, lalu bicara</label>
+    <p class="hint">Dikenali langsung di laptop ini oleh pengenal suara Windows, tanpa internet. Tidak ada suara yang dikirim atau disimpan sampai kamu memanggil aina. Selama aktif, mikrofon tetap terbuka (ikon mikrofon Windows tampil) dan memakai sekitar 40 MB RAM. Beri jeda sebentar setelah "Hey aina", tunggu bunyi, baru bicara.</p>
+    <label class="check"><input type="checkbox" id="dictationCleanup" /> Rapikan hasil dikte dengan Claude (tanda baca, hapus "eh", "anu")</label>
+    <label class="check"><input type="checkbox" id="launchAtLogin" /> Jalankan saat Windows menyala</label>
+  </div>
+</main>
+<footer>
+  <span class="status" id="saveStatus"></span>
+  <button class="primary" id="save">Simpan</button>
+</footer>
+<script src="icons.js"></script>
+<script src="settings.js"></script>
+<script src="settingsnav.js"></script>
+</body>
+</html>

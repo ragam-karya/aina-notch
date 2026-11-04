@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+<title>aina · Fokus</title>
+<link rel="stylesheet" href="fonts.css" /><link rel="stylesheet" href="style.css" />
+<style>
+  body { padding: 18px 20px 20px; }
+  h1 { font-size: 18px; display: flex; align-items: center; gap: 8px; }
+  h1 .dot { width: 9px; height: 9px; border-radius: 50%; background: #3ddc97; box-shadow: 0 0 8px #3ddc97; flex: none; }
+  nav { display: flex; gap: 4px; margin: 0 0 14px; }
+  nav button { padding: 5px 12px; border-radius: 999px; font-size: 13px; }
+  nav button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  section[hidden] { display: none; }
+  .meta { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  textarea { min-height: 70px; }
+  #noteText { min-height: 180px; }
+  .row.end { justify-content: flex-end; margin-top: 16px; }
+  .folder { display: flex; gap: 8px; }
+  .folder input { flex: 1; }
+  .week { display: grid; gap: 6px; margin: 6px 0 14px; }
+  .week .bar { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 13px; }
+  .week .bar i { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: color-mix(in srgb, #3ddc97 70%, transparent); }
+  .rec { border-top: 1px solid var(--line); padding: 10px 0; font-size: 13px; }
+  .rec .t { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+  .rec .t span:last-child { color: var(--muted); font-weight: 400; white-space: nowrap; }
+  .rec p { margin: 3px 0 0; color: var(--muted); white-space: pre-wrap; }
+  .rec p b { color: var(--text); font-weight: 600; }
+  .empty { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<nav id="nav">
+  <button type="button" data-tab="work" id="tabWork">Fokus</button>
+  <button type="button" data-tab="history">Riwayat</button>
+</nav>
+
+<!-- A new focus: a name, or a folder, or both. -->
+<section id="new" hidden>
+  <h1>Mulai fokus</h1>
+  <p class="meta">aina memakai konteks ini untuk semua jawaban dan pekerjaannya. Kalau ada folder, AI hanya mengubah file di dalamnya.</p>
+  <label for="newName">Nama pekerjaan</label>
+  <input type="text" id="newName" maxlength="60" placeholder="misalnya: Laporan Q4, atau kosongkan untuk pakai nama folder" />
+  <label for="newFolder">Folder project (opsional)</label>
+  <div class="folder"><input type="text" id="newFolder" readonly placeholder="Belum dipilih" /><button type="button" id="pick">Pilih…</button></div>
+  <label for="newAbout">Tentang pekerjaan ini (opsional)</label>
+  <input type="text" id="newAbout" maxlength="200" placeholder="misalnya: aplikasi Tauri untuk asisten aina" />
+  <label for="newGoal">Target sesi ini (opsional)</label>
+  <input type="text" id="newGoal" maxlength="200" placeholder="misalnya: selesaikan PR halaman notch" />
+  <label class="check" id="newLockRow"><input type="checkbox" id="newLock" checked /> AI hanya boleh mengubah file di folder ini</label>
+  <div class="status err" id="newErr"></div>
+  <div class="row end"><button class="primary" type="button" id="start">Mulai fokus</button></div>
+</section>
+
+<!-- The running focus: what it is about, its goal, notes. -->
+<section id="work" hidden>
+  <h1><span class="dot"></span><span id="workName"></span></h1>
+  <p class="meta" id="workMeta"></p>
+  <label for="workAbout">Tentang pekerjaan ini</label>
+  <input type="text" id="workAbout" maxlength="200" />
+  <label for="workGoal">Target sesi ini</label>
+  <input type="text" id="workGoal" maxlength="200" />
+  <label for="noteText">Catatan sesi</label>
+  <textarea id="noteText" placeholder="Hasil, hambatan, ide… tersimpan otomatis"></textarea>
+  <div class="status" id="saved"></div>
+</section>
+
+<!-- Ending: an optional short summary. -->
+<section id="end" hidden>
+  <h1>Selesai fokus: <span id="endName"></span></h1>
+  <p class="meta" id="endMeta"></p>
+  <label for="done">Apa yang berhasil diselesaikan?</label>
+  <textarea id="done"></textarea>
+  <label for="pending">Apa yang masih tertunda?</label>
+  <textarea id="pending"></textarea>
+  <label for="next">Apa langkah berikutnya?</label>
+  <textarea id="next"></textarea>
+  <div class="row end">
+    <button type="button" id="endSkip">Selesai tanpa ringkasan</button>
+    <button class="primary" type="button" id="endSave">Simpan &amp; selesai</button>
+  </div>
+</section>
+
+<!-- Where the time went: this week per project, then the last sessions. -->
+<section id="history" hidden>
+  <h1>Riwayat fokus</h1>
+  <label>7 hari terakhir</label>
+  <div class="week" id="week"></div>
+  <label>Sesi terakhir</label>
+  <div id="recs"></div>
+</section>
+
+<script src="focus.js"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+/* A Sprite's code diff (diffview.js), in the colors Coucou uses: added #22C55E on 12%, removed #F4505E
+   on 12%, their text #86EFAC / #FCA5A5, context dimmed. Dark in both windows. */
+.dv-head { display: flex; align-items: center; gap: 8px; min-width: 0; margin-bottom: 8px; }
+.dv-name { font-weight: 600; color: #f5f6f8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+.dv-tag { font-size: 10.5px; color: #86efac; background: rgba(34,197,94,.14); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+.dv-counts { display: inline-flex; gap: 6px; font: 600 11.5px Consolas, "Cascadia Mono", monospace; white-space: nowrap; }
+.dv-plus { color: #22c55e; }
+.dv-minus { color: #f4505e; }
+.dv-head button { flex: none; width: 24px; height: 24px; padding: 0; border-radius: 8px; line-height: 24px; text-align: center; }
+.dv-body {
+  font: 11.5px/1.55 Consolas, "Cascadia Mono", monospace; color: #6b7079; background: rgba(0,0,0,.28);
+  border: 1px solid rgba(255,255,255,.07); border-radius: 10px; padding: 4px 0; overflow: auto; overscroll-behavior: contain;
+}
+.dv-body::-webkit-scrollbar { width: 6px; height: 6px; }
+.dv-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 3px; }
+.dv-hunk { color: #7c8cff; padding: 2px 10px; background: rgba(124,140,255,.08); margin: 4px 0 2px; }
+.dv-hunk:first-child { margin-top: 0; }
+.dv-row { display: flex; white-space: pre; min-width: max-content; }
+.dv-no { flex: none; width: 34px; padding-right: 6px; text-align: right; color: #454850; user-select: none; }
+.dv-sign { flex: none; width: 14px; color: #454850; user-select: none; }
+.dv-code { padding-right: 12px; }
+.dv-add { background: rgba(34,197,94,.12); }
+.dv-add .dv-code { color: #86efac; }
+.dv-add .dv-sign { color: #22c55e; }
+.dv-del { background: rgba(244,80,94,.12); }
+.dv-del .dv-code { color: #fca5a5; }
+.dv-del .dv-sign { color: #f4505e; }
+.dv-note { padding: 10px 12px; font-family: Urbanist, "Segoe UI", sans-serif; color: #8e9bb0; white-space: normal; }
+
+/* The list of changed files. */
+.dv-files { display: flex; flex-direction: column; gap: 2px; }
+.dv-file {
+  display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; text-align: left; cursor: pointer;
+  background: transparent; border: 0; border-radius: 8px; padding: 4px 6px; color: #dfe6f0; font: 12px Urbanist, "Segoe UI", sans-serif;
+}
+.dv-file:hover { background: rgba(255,255,255,.07); }
+.dv-file .dv-fname { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: Consolas, "Cascadia Mono", monospace; font-size: 11.5px; }
+.dv-file .dv-fname::before { content: '✎'; color: #5f646d; margin-right: 6px; font-family: "Segoe UI Symbol", sans-serif; }
+.dv-more { color: #8e9bb0; font-size: 11.5px; padding: 2px 6px; }

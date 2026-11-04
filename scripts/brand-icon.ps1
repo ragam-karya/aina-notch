@@ -133,9 +133,9 @@ $mark.Dispose()
 Write-Output "brand-icon: installer\header.bmp"
 
 # The mark without the name, then the UI's copies (Settings shows the dark logo; sync-ui copies
-# ../assets/brand into ui-dist).
+# ui/assets/brand into ui-dist).
 Copy-Item (Join-Path $icons 'source.png') (Join-Path $brand 'aina-mark.png')
-$uiBrand = Join-Path $PSScriptRoot '..\..\assets\brand'
+$uiBrand = Join-Path $PSScriptRoot '..\ui\assets\brand'
 New-Item -ItemType Directory -Force $uiBrand | Out-Null
 Copy-Item (Join-Path $brand 'aina-mark.png'), (Join-Path $brand 'aina-logo.png'), (Join-Path $brand 'aina-logo-dark.png') $uiBrand
 Write-Output "brand-icon: ..\assets\brand"

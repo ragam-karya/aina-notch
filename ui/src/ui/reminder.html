@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+<title>aina · Pengingat</title>
+<link rel="stylesheet" href="fonts.css" /><link rel="stylesheet" href="style.css" />
+<style>
+  body { padding: 18px 20px 20px; }
+  h1 { font-size: 18px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  h1 .dot { width: 9px; height: 9px; border-radius: 50%; background: #8b7cff; box-shadow: 0 0 8px #8b7cff; flex: none; }
+  section[hidden] { display: none; }
+  .meta { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+  .chips button { padding: 4px 11px; border-radius: 999px; font-size: 12.5px; }
+  .chips button.on { background: #8b7cff; border-color: #8b7cff; color: #fff; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  textarea { min-height: 64px; }
+  .row.end { justify-content: flex-end; margin-top: 16px; gap: 8px; }
+  .note { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+  .danger { color: #ff8a92; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<!-- A new reminder, or a change to one (local or Google). -->
+<section id="edit">
+  <h1><span class="dot"></span><span id="editTitle">Pengingat baru</span></h1>
+  <label for="title">Judul</label>
+  <input type="text" id="title" maxlength="120" placeholder="misalnya: Kirim laporan ke Sari" />
+  <label>Kapan</label>
+  <div class="chips" id="shortcuts">
+    <button type="button" data-short="5m">5 menit lagi</button>
+    <button type="button" data-short="15m">15 menit lagi</button>
+    <button type="button" data-short="1h">1 jam lagi</button>
+    <button type="button" data-short="later">Nanti sore</button>
+    <button type="button" data-short="tomorrow">Besok pagi</button>
+  </div>
+  <div class="two">
+    <div><label for="date">Tanggal</label><input type="date" id="date" /></div>
+    <div id="timeBox"><label for="time">Jam</label><input type="time" id="time" /></div>
+  </div>
+  <label class="check"><input type="checkbox" id="allDay" /> Seharian</label>
+  <label for="length">Durasi</label>
+  <select id="length">
+    <option value="0">Pengingat saja (tanpa durasi)</option>
+    <option value="15">15 menit</option>
+    <option value="30">30 menit</option>
+    <option value="60">1 jam</option>
+    <option value="90">1,5 jam</option>
+    <option value="120">2 jam</option>
+  </select>
+  <label for="repeat">Ulangi</label>
+  <select id="repeat">
+    <option value="">Tidak berulang</option>
+    <option value="daily">Setiap hari</option>
+    <option value="weekdays">Setiap hari kerja (Sen–Jum)</option>
+    <option value="weekly">Setiap minggu</option>
+    <option value="monthly">Setiap bulan</option>
+  </select>
+  <label for="note">Catatan (opsional)</label>
+  <textarea id="note" maxlength="1000"></textarea>
+  <label class="check" id="notifyRow"><input type="checkbox" id="notify" checked /> Beri tahu aku saat waktunya</label>
+  <div id="destBox">
+    <label for="dest">Simpan di</label>
+    <select id="dest"><option value="local">PC ini (lokal)</option></select>
+    <p class="note" id="destNote">Pengingat lokal tidak dikirim ke mana pun.</p>
+  </div>
+  <p class="note" id="readOnly" hidden></p>
+  <div class="status err" id="err"></div>
+  <div class="row end">
+    <button type="button" id="del" class="danger" hidden>Hapus</button>
+    <button class="primary" type="button" id="save">Simpan</button>
+  </div>
+</section>
+
+<script src="reminder.js"></script>
+</body>
+</html>

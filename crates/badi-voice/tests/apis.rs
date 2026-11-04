@@ -11,7 +11,7 @@ use badi_voice::wav::resample;
 
 fn key(name: &str) -> Option<String> {
     std::env::var(name).ok().or_else(|| {
-        let env = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../.env")).ok()?;
+        let env = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../.env")).ok()?;
         env.lines().find_map(|l| l.strip_prefix(&format!("{name}=")).map(|v| v.trim().trim_matches('"').to_string()))
     })
 }

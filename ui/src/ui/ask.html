@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" /><title>aina</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+<link rel="stylesheet" href="fonts.css" /><link rel="stylesheet" href="style.css" />
+<style>
+  html, body { background: transparent; height: 100%; }
+  form { margin: 6px; display: flex; gap: 8px; padding: 8px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  input { flex: 1; border: none !important; outline: none !important; font-size: 15px; background: transparent !important; }
+</style>
+</head>
+<body>
+<form id="f">
+  <input type="text" id="q" placeholder="Tanya aina tentang layarmu… (Enter)" autofocus />
+  <button class="primary" type="submit">Tanya</button>
+</form>
+<script src="ask.js"></script>
+</body>
+</html>

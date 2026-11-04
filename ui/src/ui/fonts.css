@@ -1,0 +1,9 @@
+/* aina's typeface: Urbanist (SIL Open Font License, assets/fonts/Urbanist-OFL.txt), one variable file
+   for every weight, bundled because the pages may load nothing from the web. */
+@font-face {
+  font-family: Urbanist;
+  src: url('../../assets/fonts/Urbanist-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}

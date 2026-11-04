@@ -119,7 +119,7 @@ pub fn extension_dir(app: &AppHandle) -> Option<PathBuf> {
     if let Ok(r) = app.path().resource_dir() {
         candidates.push(r.join("extension"));
     }
-    candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../extension"));
+    candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../extension"));
     candidates.into_iter().find(|p| p.join("manifest.json").is_file()).map(|p| badi_agent::guard::real(&p))
 }
 

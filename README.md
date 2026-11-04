@@ -1,13 +1,13 @@
-# B.A.D.I. v2 (Rust + Tauri 2)
+# aina notch (Rust + Tauri 2)
 
-Migrasi big-bang Badi dari Electron ke Rust + Tauri 2. Rencana fase ada di `../../coucou-analysis/badi-migrasi-tauri-plan.md`, desain sistem di `../../coucou-analysis/badi-system-design.md`.
+Aplikasi desktop aina untuk Windows: notch AI di tepi atas layar, giliran suara, "Kerjakan untukku", agent latar belakang dan aplikasi kerja. Server aina cloud ada di [ragam-karya/aina-backend](https://github.com/ragam-karya/aina-backend), landing page di [ragam-karya/aina-web](https://github.com/ragam-karya/aina-web).
 
-**Aturan UI:** tidak ada UI yang dikurangi. Semua halaman v1 (`../src/ui/*`: overlay, notch, gambar, Rive, Lottie, Settings, Agents, Ask, drop) dipakai **apa adanya**. v2 hanya mengganti jembatan `window.badi` (`crates/badi-app/src/shim.js`), dengan kanal dan allowlist yang sama seperti `preload.js`.
+Halaman UI (`ui/src/ui/*`: overlay, notch, gambar, Rive, Lottie, Settings, Agents, Ask, drop) berasal dari versi Electron dan dipakai apa adanya. Jembatannya `window.badi` (`crates/badi-app/src/shim.js`).
 
 ## Struktur
 
 ```
-badi-v2/
+aina-notch/
 ├─ crates/
 │  ├─ badi-apps/    aplikasi kerja Composio (REST tool-router untuk ak_, MCP untuk ck_), upload Drive, media (WinRT) (port workApps.js, media.js)
 │  ├─ badi-net/     ke mana panggilan pergi: langsung ke penyedia (key sendiri) atau lewat Badi Cloud (token akun)
@@ -19,16 +19,22 @@ badi-v2/
 │  ├─ badi-screen/  tangkap layar per monitor + JPEG + crop tanda, matematika koordinat (port capture.js, region.js, brain/coords.js)
 │  ├─ badi-uia/     UI Automation lewat COM di dalam proses (port uia.js + BadiUia.cs)
 │  └─ badi-store/   config.json (%APPDATA%\BADI) + key di Windows Credential Manager
+├─ ui/             halaman UI (src/ui), string i18n (src/i18n.js), aset: logo, font Urbanist, Rive, Lottie
+├─ extension/      ekstensi browser (MV3) untuk "Kerjakan untukku" di browser
+├─ native/wake/    pendengar "Hey aina" (BadiWake.cs, System.Speech)
+├─ badi-mascot/    mascot Rive (proyek Rive CLI → dist/BADI_Mascot.riv)
+├─ store/          listing + screenshot Microsoft Store
 ├─ scripts/
-│  ├─ sync-ui.mjs   salin UI v1 ke ui-dist/ dengan tata letak yang sama (path relatif tetap jalan)
-│  └─ brand-icon.ps1  ikon dari logo Aina (icons/brand)
-├─ docs/           QA-paritas.md (uji beta), hardening.md (performa + keamanan)
+│  ├─ sync-ui.mjs   salin ui/ ke ui-dist/ dengan tata letak yang sama (path relatif tetap jalan)
+│  ├─ build-wake.mjs  kompilasi BadiWake.exe dengan csc.exe bawaan Windows
+│  └─ brand-icon.ps1  ikon dan logo dari icons/brand
+├─ docs/           DESIGN-SYSTEM.md, PRD, BRD, QA-paritas.md, hardening.md
 └─ ui-dist/         hasil sync-ui (tidak di-commit)
 ```
 
 ## Menjalankan
 
-Butuh: Rust (MSVC), **Visual Studio Build Tools dengan "Desktop development with C++"**, Node 20+, dan `npm install` di folder v1 (`..`) untuk runtime Rive/Lottie.
+Butuh: Rust (MSVC), **Visual Studio Build Tools dengan "Desktop development with C++"**, Node 20+, lalu `npm install` (runtime Rive/Lottie dan Tauri CLI). `npm run dev`/`build` otomatis mengompilasi `BadiWake.exe` dan menjalankan sync-ui.
 
 > Di mesin pengembang, Build Tools terpasang di `D:\VS\BuildTools` (disk C hampir penuh). Jalankan `cargo` dari **PowerShell**, bukan Git Bash: `link.exe` milik Git Bash menimpa linker MSVC dan build gagal dengan "extra operand".
 

@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'" />
+<title>aina</title>
+<link rel="stylesheet" href="fonts.css" /><link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="agents.css" />
+<link rel="stylesheet" href="diffview.css" />
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="aside-head">
+      <h1><canvas id="badiHead" class="badi-head"></canvas><span id="asideTitle">aina</span></h1>
+      <button class="primary" id="newBtn">Baru</button>
+    </div>
+    <p class="hint" id="engine"></p>
+    <ul id="list"></ul>
+  </aside>
+  <section id="detail">
+    <div class="empty" id="empty">
+      <canvas id="badiBody" class="badi-body" title="Halo!"></canvas>
+      <h1 id="emptyTitle">Agent latar belakang milikmu</h1>
+      <p class="hint" id="emptyHint">Setiap aina punya nama, tugas, memori (AGENTS.md) dan folder kerjanya sendiri. Beri dia pekerjaan, dia bekerja di latar belakang, lalu melapor di chat ini.</p>
+    </div>
+    <div id="chatView" hidden>
+      <header>
+        <div>
+          <h1 id="title"></h1>
+          <p class="hint" id="purpose"></p>
+        </div>
+        <div class="row">
+          <button id="folderBtn">Buka folder</button>
+          <button id="stopBtn" hidden>Hentikan</button>
+          <button class="danger" id="deleteBtn">Hapus</button>
+        </div>
+      </header>
+      <div id="routines"></div>
+      <div id="messages"></div>
+      <pre id="log" hidden></pre>
+      <form id="composer">
+        <textarea id="input" rows="2" placeholder="Beri tugas… (Ctrl+Enter untuk kirim)"></textarea>
+        <button class="primary" type="submit" id="sendBtn">Kirim</button>
+      </form>
+    </div>
+  </section>
+</div>
+
+<dialog id="newDialog">
+  <form method="dialog" id="newForm">
+    <h1>aina baru</h1>
+    <label for="newName">Nama</label>
+    <input type="text" id="newName" placeholder="mis. Competitor Radar" required />
+    <label for="newPurpose">Tugasnya</label>
+    <textarea id="newPurpose" rows="3" placeholder="mis. Setiap pagi cari apa yang dirilis tiga kompetitor utama saya."></textarea>
+    <div class="row dialog-actions">
+      <button value="cancel" type="button" id="cancelNew">Batal</button>
+      <button class="primary" value="ok" type="submit">Buat</button>
+    </div>
+  </form>
+</dialog>
+<script src="../../node_modules/@rive-app/canvas/rive.js"></script>
+<dialog id="diffDialog">
+  <div id="diffHead"></div>
+  <div id="diffBody"></div>
+  <div class="row dialog-actions"><button type="button" id="closeDiff">Tutup</button></div>
+</dialog>
+<script src="rive.js"></script>
+<script src="diffview.js"></script>
+<script src="icons.js"></script>
+<script src="agents.js"></script>
+</body>
+</html>

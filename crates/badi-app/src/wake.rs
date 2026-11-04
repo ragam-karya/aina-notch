@@ -36,7 +36,7 @@ fn exe(app: &AppHandle) -> Option<PathBuf> {
     if let Ok(r) = app.path().resource_dir() {
         candidates.push(r.join("wake").join("BadiWake.exe"));
     }
-    candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../src/wake/BadiWake.exe"));
+    candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../native/wake/BadiWake.exe"));
     candidates.into_iter().find(|p| p.is_file())
 }
 

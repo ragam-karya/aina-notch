@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { color-scheme: light dark; --bg: #0b0f19; --card: #151b2b; --line: #26304a; --text: #eef2fb; --muted: #93a0bd; --blue: #2b8aff; --ok: #2fd27a; --err: #ff5a64; }
+  @font-face { font-family: Urbanist; src: url("fonts/Urbanist-Variable.ttf") format("truetype"); font-weight: 100 900; }
+  body { margin: 0; width: 300px; background: var(--bg); color: var(--text); font: 13px/1.45 Urbanist, "Segoe UI", system-ui, sans-serif; }
+  main { padding: 16px; }
+  h1 { font-size: 16px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+  h1 i { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  h1 i.connected { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  p { margin: 0 0 12px; color: var(--muted); }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input { box-sizing: border-box; width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; }
+  #code { font-size: 22px; letter-spacing: 6px; text-align: center; font-variant-numeric: tabular-nums; }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  button { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; cursor: pointer; }
+  button.primary { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600; }
+  #status { margin-top: 12px; font-size: 12px; color: var(--muted); }
+  #status.err { color: var(--err); }
+  #status.ok { color: var(--ok); }
+  details { margin-top: 10px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1><i id="dot"></i>aina</h1>
+  <p>Sambungkan ke app aina di komputer ini, supaya aina bisa membaca dan mengoperasikan halaman web saat kamu memintanya.</p>
+  <label for="code">Kode pairing (lihat aina &gt; Settings &gt; Kontrol komputer)</label>
+  <input id="code" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="off" />
+  <details>
+    <summary>Lanjutan</summary>
+    <label for="port">Port</label>
+    <input id="port" inputmode="numeric" placeholder="47821" />
+  </details>
+  <div class="row">
+    <button class="primary" id="save">Sambungkan</button>
+    <button id="retry">Coba lagi</button>
+  </div>
+  <div id="status"></div>
+</main>
+<script src="popup.js" type="module"></script>
+</body>
+</html>
