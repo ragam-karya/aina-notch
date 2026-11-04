@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+license = "MIT"
+authors = ["Faisal Mashuri"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+regex = "1"
+chrono = "0.4"
+
+[profile.release]
+# Smaller binary: the installer size is one of the reasons for v2.
+lto = true
+codegen-units = 1
+opt-level = "s"
+strip = true
+panic = "abort"

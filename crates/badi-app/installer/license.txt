@@ -1,0 +1,52 @@
+﻿aina - PERSETUJUAN PENGGUNA
+
+Dengan memasang aina, kamu memahami dan menyetujui:
+
+1. Akun. aina bekerja lewat aina Cloud dengan akun Google. Satu akun
+   untuk satu orang; jangan bagikan akses.
+
+2. Kredit. Setiap tanya, kerjakan, suara, dan tugas latar memakai kredit
+   sesuai biaya pemakaiannya. Setiap PC mendapat 10 kredit gratis satu
+   kali. Kredit tambahan didapat dari langganan (Basic atau Pro, siklus
+   30 hari, sisa kredit hangus di akhir siklus) atau Top-Up (tidak hangus
+   selama akun aktif). Tidak ada batas per sesi, per hari, atau per
+   minggu. Saat kredit habis, aina berhenti menjawab sampai kredit
+   ditambah. Harga dan jumlah kredit yang berlaku adalah yang tampil di
+   Settings -> Akun saat membeli.
+
+3. Pembayaran. Pembayaran lewat Midtrans; data kartu (nomor, CVV, OTP)
+   hanya diisi di halaman Midtrans dan tidak disimpan aina. Langganan
+   yang dibayar dengan kartu kredit diperpanjang otomatis tiap 30 hari
+   dan bisa dibatalkan kapan saja di Settings -> Akun (paket tetap aktif
+   sampai akhir siklus). Langganan lewat QRIS, transfer, atau e-wallet
+   tidak diperpanjang otomatis. Dana yang sudah dibayar tidak dapat
+   dikembalikan, kecuali layanan tidak bisa dipakai karena kesalahan kami.
+
+4. Data yang dikirim. Saat kamu bertanya, suara, teks, dan tangkapan layar
+   diteruskan ke penyedia AI (Anthropic, OpenAI, ElevenLabs) untuk
+   menjawab, dan tidak disimpan di server aina. Aplikasi kerja yang kamu
+   sambungkan (Gmail, Calendar, dan lainnya) berjalan lewat Composio.
+
+5. Data di komputermu. Setelan, catatan dikte (Documents\aina\Dikte), dan
+   daftar file pengetahuan disimpan di komputermu sendiri. aina tidak
+   menyimpan API key apa pun.
+
+6. Tindakan di komputer. aina selalu meminta izin sebelum mengubah,
+   memindahkan, atau mengirim sesuatu. File yang dihapus masuk ke Recycle
+   Bin. aina tidak pernah mengetik kata sandi, OTP, atau data kartu. Kamu
+   bertanggung jawab atas tindakan yang kamu setujui.
+
+7. Pemakaian yang wajar. Dilarang memakai aina untuk melanggar hukum,
+   mengakses sistem tanpa hak, atau mengakali kredit.
+
+8. Batasan. Jawaban AI bisa keliru; periksa hasil yang penting sebelum
+   dipakai. Aplikasi disediakan "sebagaimana adanya", dan tanggung jawab
+   kami terbatas pada nilai pembelian kredit dalam 30 hari terakhir.
+
+Ketentuan Layanan lengkap:
+https://badi-cloud.faisalmashuri16.workers.dev/ketentuan
+
+Kebijakan privasi lengkap:
+https://badi-cloud.faisalmashuri16.workers.dev/privasi
+
+(c) Faisal Mashuri

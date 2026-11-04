@@ -1,0 +1,18 @@
+{
+  "name": "aina",
+  "private": true,
+  "version": "1.0.0",
+  "description": "B.A.D.I. v2: Rust + Tauri 2, same UI as v1",
+  "type": "module",
+  "scripts": {
+    "sync-ui": "node scripts/sync-ui.mjs",
+    "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/brand-icon.ps1 && tauri icon crates/badi-app/icons/source.png -o crates/badi-app/icons",
+    "dev": "node scripts/sync-ui.mjs && tauri dev",
+    "build": "node scripts/sync-ui.mjs && tauri build",
+    "build:msix": "node scripts/sync-ui.mjs && tauri build --no-bundle && node scripts/build-msix.mjs",
+    "test": "cargo test --workspace"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
