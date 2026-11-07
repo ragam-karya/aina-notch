@@ -52,6 +52,7 @@ $env:BADI_PROFILE = "D:\badi-test"  # data di folder lain, config asli tidak ter
 ### Build rilis
 ```powershell
 $env:BADI_CLOUD_URL = "https://badi-cloud.faisalmashuri16.workers.dev"   # alamat Cloud ikut di-build
+$env:BADI_WEB_URL = "https://aina.ai.id/api"                            # opsional (ini default-nya): halaman Ketentuan dan Privasi yang dibuka di browser, lewat proxy /api website
 $env:BADI_FEEDBACK_URL = "https://forms.gle/…"                            # opsional: tray → Kirim masukan
 npm run build    # → target\release\bundle\nsis\B.A.D.I._<versi>_x64-setup.exe
 ```
