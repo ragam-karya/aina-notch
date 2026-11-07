@@ -21,6 +21,11 @@ const DEFAULT_URL: &str = match option_env!("BADI_CLOUD_URL") {
     Some(u) => u,
     None => "https://badi-cloud.faisalmashuri16.workers.dev",
 };
+// Set when building (BADI_WEB_URL=…), like BADI_CLOUD_URL.
+const DEFAULT_WEB_URL: &str = match option_env!("BADI_WEB_URL") {
+    Some(u) => u,
+    None => "https://aina.ai.id/api",
+};
 const POLL: Duration = Duration::from_secs(60);
 
 /// The last account seen (plan, credits), and whether "credits are low" was said already.
@@ -38,7 +43,19 @@ fn state(app: &AppHandle) -> tauri::State<'_, AppState> {
 }
 
 pub fn base(app: &AppHandle) -> String {
-    std::env::var("BADI_CLOUD_URL").ok().or_else(|| state(app).store.get("cloudUrl").as_str().filter(|s| !s.is_empty()).map(String::from)).unwrap_or_else(|| DEFAULT_URL.into())
+    custom_base(app).unwrap_or_else(|| DEFAULT_URL.into())
+}
+
+/// A cloud address set by hand (BADI_CLOUD_URL when running, or the cloudUrl setting), e.g. a dev Worker.
+fn custom_base(app: &AppHandle) -> Option<String> {
+    std::env::var("BADI_CLOUD_URL").ok().or_else(|| state(app).store.get("cloudUrl").as_str().filter(|s| !s.is_empty()).map(String::from))
+}
+
+/// Where the pages the browser opens live (signing in, the terms): the same cloud through the
+/// website's /api proxy, so the browser shows the website's address instead of the Worker's. The API
+/// calls stay on base(). A cloud address set by hand is used for both.
+pub fn web_base(app: &AppHandle) -> String {
+    custom_base(app).unwrap_or_else(|| DEFAULT_WEB_URL.into())
 }
 
 fn token(app: &AppHandle) -> Option<String> {
@@ -150,7 +167,7 @@ pub fn login(app: &AppHandle) -> Result<(), String> {
     let part = || std::collections::hash_map::RandomState::new().build_hasher().finish();
     let app_state = format!("{:016x}{:016x}{:016x}{:016x}", part(), part(), part(), part());
     *PENDING.lock().unwrap() = Some((app_state.clone(), std::time::Instant::now()));
-    shell_open(&format!("{}/login?app_state={app_state}", base(app)))
+    shell_open(&format!("{}/login?app_state={app_state}", web_base(app)))
 }
 
 fn http() -> Client {
@@ -442,7 +459,7 @@ pub fn invoke(app: &AppHandle, ch: &str, arg: &Value) -> Result<Value, String> {
         "cloud:open" => {
             let path = arg.as_str().unwrap_or("/");
             let path = if path.starts_with('/') { path.to_string() } else { "/".into() };
-            shell_open(&format!("{}{path}", base(app))).map(|_| Value::Null)
+            shell_open(&format!("{}{path}", web_base(app))).map(|_| Value::Null)
         }
         _ => Err(format!("unknown channel: {ch}")),
     }
