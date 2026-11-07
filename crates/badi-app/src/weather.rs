@@ -64,7 +64,7 @@ fn resolve(app: &AppHandle) -> Result<Place, &'static str> {
     match badi_apps::geo::position(Duration::from_secs(15)) {
         Ok((lat, lon)) => {
             let named = get_json(&weather::reverse_url(lat, lon, &i18n::lang(app))).map(|b| weather::parse_reverse(&b, lat, lon));
-            Ok(named.unwrap_or(Place { name: String::new(), lat, lon, region: String::new() }))
+            Ok(named.unwrap_or(Place { lat, lon, ..Default::default() }))
         }
         Err(e) => {
             if std::env::var_os("BADI_LOG").is_some() {
@@ -73,6 +73,22 @@ fn resolve(app: &AppHandle) -> Result<Place, &'static str> {
             place_from_prayer_city(app).ok_or(if e == badi_apps::geo::GeoError::Denied { "locationOff" } else { "noPlace" })
         }
     }
+}
+
+// myQuran's whole city list (about 518), fetched once per run and matched locally: its search wants
+// the exact spelling ("bandarlampung" finds nothing, "BANDAR LAMPUNG" is the name).
+static PRAYER_CITIES: LazyLock<Mutex<Option<Vec<(String, String)>>>> = LazyLock::new(|| Mutex::new(None));
+
+fn prayer_cities() -> Option<Vec<(String, String)>> {
+    if let Some(c) = PRAYER_CITIES.lock().unwrap().clone() {
+        return Some(c);
+    }
+    let found = badi_core::prayer::parse_cities(&get_json(&badi_core::prayer::all_url()).ok()?);
+    if found.is_empty() {
+        return None;
+    }
+    *PRAYER_CITIES.lock().unwrap() = Some(found.clone());
+    Some(found)
 }
 
 /// The prayer times follow the place, unless the person picked their city in Settings (no `auto`).
@@ -84,9 +100,8 @@ fn share_with_prayer(app: &AppHandle, place: &Place) {
     if picked || st.store.get("locationShare") == false || place.name.is_empty() {
         return;
     }
-    let keyword = weather::prayer_keyword(&place.name);
-    let Ok(body) = get_json(&badi_core::prayer::search_url(&keyword)) else { return };
-    let Some((id, name)) = weather::best_prayer_city(&keyword, &badi_core::prayer::parse_cities(&body)) else { return };
+    let Some(cities) = prayer_cities() else { return };
+    let Some((id, name)) = weather::match_prayer_city(place, &cities) else { return };
     if current["id"].as_str() == Some(id.as_str()) {
         return;
     }
@@ -175,7 +190,7 @@ pub fn invoke(app: &AppHandle, ch: &str, arg: &Value) -> Result<Value, String> {
         }
         "location:detect" => match badi_apps::geo::position(Duration::from_secs(20)) {
             Ok((lat, lon)) => {
-                let place = get_json(&weather::reverse_url(lat, lon, &i18n::lang(app))).map(|b| weather::parse_reverse(&b, lat, lon)).unwrap_or(Place { name: String::new(), lat, lon, region: String::new() });
+                let place = get_json(&weather::reverse_url(lat, lon, &i18n::lang(app))).map(|b| weather::parse_reverse(&b, lat, lon)).unwrap_or(Place { lat, lon, ..Default::default() });
                 Ok(json!(place))
             }
             Err(badi_apps::geo::GeoError::Denied) => Err("locationOff".into()),
@@ -211,7 +226,7 @@ pub fn demo(app: &AppHandle, place: &str, temp: i64, code: i64) {
     {
         let mut w = WX.lock().unwrap();
         let (kind, text) = weather::describe(code, &i18n::lang(app));
-        w.place = Some(Place { name: place.into(), lat: 0.0, lon: 0.0, region: String::new() });
+        w.place = Some(Place { name: place.into(), ..Default::default() });
         w.weather = Some(json!({ "temp": temp, "kind": kind, "text": text, "day": true, "max": temp + 2, "min": temp - 5, "feels": temp + 4, "code": code, "at": now_ms() }));
         w.error = "";
         w.tried = now_ms();

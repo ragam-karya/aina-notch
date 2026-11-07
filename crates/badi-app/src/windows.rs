@@ -219,7 +219,12 @@ pub fn create_overlays(app: &AppHandle) -> tauri::Result<()> {
             .content_protected(protect)
             .initialization_script(script)
             // The overlay only ever shows Badi's own page.
-            .on_navigation(|url| url.host_str() == Some("tauri.localhost") || url.scheme() == "tauri")
+            // (`npm run dev` serves it from Tauri's local dev server, so debug builds allow that too.)
+            .on_navigation(|url| {
+                url.host_str() == Some("tauri.localhost")
+                    || url.scheme() == "tauri"
+                    || (cfg!(debug_assertions) && url.scheme() == "http" && matches!(url.host_str(), Some("127.0.0.1" | "localhost")))
+            })
             .build()?;
         win.set_position(pos)?;
         win.set_size(size)?;

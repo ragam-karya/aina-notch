@@ -1018,7 +1018,8 @@
       row.title = `${w.text}${w.feels != null ? ` · ${fill(label('wxFeels', 'terasa {t}°'), { t: w.feels })}` : ''}${w.min != null ? ` · ${w.min}–${w.max}°` : ''}`;
       return row;
     }
-    if (w?.error) return button('weather:setup', w.error === 'locationOff' ? label('wxLocationOff', 'Nyalakan lokasi') : label('wxSetup', 'Atur lokasi cuaca'), 'chip wxset');
+    // No position from the laptop (no GPS/Wi-Fi location, or location off): ask for a city.
+    if (w?.error) return button('weather:setup', label('wxSetup', 'Masukkan kota'), 'chip wxset');
     return null;
   }
   // ---- reminders ----
@@ -1683,8 +1684,9 @@
     badi.send('island:interactive', inside);
   }
   // Over a full-screen app the notch is hidden and takes no clicks. Resting the cursor at the very top,
-  // near the middle, for a second calls it up; once the cursor has left it again, it hides.
-  const REVEAL_MS = 1000;
+  // near the middle, for half a second calls it up, already open (the peek, not the small pill); once
+  // the cursor has left it again, it hides.
+  const REVEAL_MS = 500;
   let revealTimer = 0;
   let hideTimer = 0;
   function unreveal(after) {
@@ -1707,6 +1709,9 @@
       revealTimer = 0;
       I.revealed = true;
       unreveal(2500); // called up but not used: it tucks away again
+      // Straight to the peek: hovered as of now, without the usual 120 ms before it opens.
+      setHover(true);
+      I.peekSince = performance.now() - 1000;
       wake();
     }, REVEAL_MS);
   }

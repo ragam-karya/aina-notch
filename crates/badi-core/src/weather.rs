@@ -1,7 +1,10 @@
 // Weather and the shared place for the notch: the current weather from Open-Meteo (free, no key), city
-// search through Open-Meteo's geocoding, a place's name from BigDataCloud's free reverse geocoding (for
-// a position from the laptop's location), and matching that place to a myQuran city so the prayer
-// times can follow the same place. Pure here: URLs, reading the responses, and the WMO weather codes.
+// search through Open-Meteo's geocoding (Indonesia only), a place's name from BigDataCloud's free
+// reverse geocoding (for a position from the laptop's location), and matching that place to a myQuran
+// city so the prayer times can follow the same place. Kemenag's schedule is per regency/municipality,
+// so a place also carries the one it lies in (`area`: Open-Meteo's admin2, BigDataCloud's level 5):
+// Cikarang is "Kabupaten Bekasi", Purwokerto "Kabupaten Banyumas". Pure here: URLs, reading the
+// responses, and the WMO weather codes.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -14,6 +17,9 @@ pub struct Place {
     pub lon: f64,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub region: String,
+    /// The regency or municipality it lies in, e.g. "Kabupaten Bekasi" (empty when unknown).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub area: String,
 }
 
 fn enc(s: &str) -> String {
@@ -27,8 +33,22 @@ pub fn forecast_url(p: &Place) -> String {
     )
 }
 
+/// What people call a city that the geocoder knows by another name.
+fn alias(name: &str) -> &str {
+    match name.trim().to_lowercase().as_str() {
+        "solo" => "Surakarta",
+        "jogja" | "yogya" | "jogjakarta" => "Yogyakarta",
+        _ => name,
+    }
+}
+
+/// A city search, in Indonesia only (a bare "Bekasi" otherwise also finds Békasiki in Cameroon).
 pub fn search_url(name: &str, lang: &str) -> String {
-    format!("https://geocoding-api.open-meteo.com/v1/search?name={}&count=6&language={}&format=json", enc(name), if lang == "en" { "en" } else { "id" })
+    format!(
+        "https://geocoding-api.open-meteo.com/v1/search?name={}&count=6&language={}&format=json&countryCode=ID",
+        enc(alias(name)),
+        if lang == "en" { "en" } else { "id" }
+    )
 }
 
 pub fn reverse_url(lat: f64, lon: f64, lang: &str) -> String {
@@ -78,17 +98,37 @@ pub fn parse_search(body: &Value) -> Vec<Place> {
         .flatten()
         .filter_map(|r| {
             let region = [r["admin1"].as_str(), r["country"].as_str()].into_iter().flatten().collect::<Vec<_>>().join(", ");
-            Some(Place { name: r["name"].as_str()?.to_string(), lat: r["latitude"].as_f64()?, lon: r["longitude"].as_f64()?, region })
+            let area = r["admin2"].as_str().unwrap_or("").to_string();
+            Some(Place { name: r["name"].as_str()?.to_string(), lat: r["latitude"].as_f64()?, lon: r["longitude"].as_f64()?, region, area })
         })
         .collect()
 }
 
-/// A position's place name: the city, else the locality, else the region.
+/// A position's place name: the city, else the locality, else the region. Its regency/municipality is
+/// the level-5 division, named "Kabupaten X" or "Kota X" from its description ("kabupaten di …",
+/// "regency in …", "kota di …", "city in …").
 pub fn parse_reverse(body: &Value, lat: f64, lon: f64) -> Place {
     let pick = |k: &str| body[k].as_str().filter(|s| !s.trim().is_empty()).map(String::from);
     let name = pick("city").or_else(|| pick("locality")).or_else(|| pick("principalSubdivision")).unwrap_or_default();
     let region = [pick("principalSubdivision"), pick("countryName")].into_iter().flatten().collect::<Vec<_>>().join(", ");
-    Place { name, lat, lon, region }
+    let area = body["localityInfo"]["administrative"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|a| a["adminLevel"] == 5)
+        .find_map(|a| {
+            let n = a["name"].as_str()?.trim();
+            let d = a["description"].as_str().unwrap_or("").to_lowercase();
+            Some(if d.starts_with("kabupaten") || d.starts_with("regency") {
+                format!("Kabupaten {n}")
+            } else if d.starts_with("kota") || d.starts_with("city") {
+                format!("Kota {n}")
+            } else {
+                n.to_string()
+            })
+        })
+        .unwrap_or_default();
+    Place { name, lat, lon, region, area }
 }
 
 /// The word to look up on myQuran for a place: its name without "Kota"/"Kabupaten"/"Kab." in front.
@@ -102,21 +142,50 @@ pub fn prayer_keyword(name: &str) -> String {
     lower
 }
 
-/// Of myQuran's matches, the one that is the place: the city ("KOTA X") before the regency
-/// ("KAB. X") of the same name, an exact name before a partial one.
-pub fn best_prayer_city(keyword: &str, found: &[(String, String)]) -> Option<(String, String)> {
-    let k = keyword.trim().to_uppercase();
-    let rank = |name: &str| {
-        let n = name.to_uppercase();
-        let bare = n.trim_start_matches("KOTA ").trim_start_matches("KAB. ").trim_start_matches("KAB ").to_string();
-        match (bare == k, n.starts_with("KOTA ")) {
-            (true, true) => 0,
-            (true, false) => 1,
-            (false, true) => 2,
-            _ => 3,
+/// "Kota X" -> (Some(true), "X"), "Kabupaten X" / "KAB. X" -> (Some(false), "X"), else (None, name), with
+/// the name in capitals and only letters and digits, so "Bandarlampung" meets "BANDAR LAMPUNG".
+fn kind_and_bare(name: &str) -> (Option<bool>, String) {
+    let lower = name.trim().to_lowercase();
+    let mut kind = None;
+    let mut rest = lower.as_str();
+    let prefixes = [
+        ("kota administrasi ", Some(true)),
+        ("kotamadya ", Some(true)),
+        ("kodya ", Some(true)),
+        ("kota ", Some(true)),
+        ("kabupaten ", Some(false)),
+        ("kab. ", Some(false)),
+        ("kab ", Some(false)),
+        ("daerah istimewa ", None),
+        ("di ", None),
+    ];
+    for (prefix, k) in prefixes {
+        if let Some(r) = rest.strip_prefix(prefix) {
+            kind = k;
+            rest = r;
+            break;
         }
+    }
+    (kind, rest.chars().filter(|c| c.is_alphanumeric()).collect::<String>().to_uppercase())
+}
+
+/// Of myQuran's cities (all of them, from `prayer::all_url`), the one a place lies in: its
+/// regency/municipality first, then its own name; an exact name before one that only starts with a
+/// city's name ("Jakarta Pusat" is "KOTA JAKARTA"), the same kind (kota/kabupaten) before the other,
+/// and a kota when the kind is unknown. None rather than a guess when nothing matches.
+pub fn match_prayer_city(place: &Place, cities: &[(String, String)]) -> Option<(String, String)> {
+    let cities: Vec<_> = cities.iter().map(|(id, n)| (id, n, kind_and_bare(n))).collect();
+    let keys: Vec<_> = [place.area.as_str(), place.name.as_str()].into_iter().filter(|k| !k.trim().is_empty()).map(kind_and_bare).filter(|(_, b)| b.len() >= 3).collect();
+    let pick = |want: Option<bool>, fits: &dyn Fn(&str) -> bool| {
+        cities
+            .iter()
+            .filter(|(_, _, (_, b))| fits(b))
+            .min_by_key(|(_, _, (k, b))| (*k != Some(want.unwrap_or(true)), std::cmp::Reverse(b.len())))
+            .map(|(id, n, _)| ((*id).clone(), (*n).clone()))
     };
-    found.iter().min_by_key(|(_, n)| rank(n)).cloned()
+    keys.iter()
+        .find_map(|(want, bare)| pick(*want, &|b| b == bare))
+        .or_else(|| keys.iter().find_map(|(want, bare)| pick(*want, &|b| b.len() >= 5 && bare.starts_with(b))))
 }
 
 #[cfg(test)]
@@ -137,9 +206,9 @@ mod tests {
 
     #[test]
     fn urls_and_places() {
-        let p = Place { name: "Bekasi".into(), lat: -6.2383, lon: 106.9756, region: String::new() };
+        let p = Place { name: "Bekasi".into(), lat: -6.2383, lon: 106.9756, ..Default::default() };
         assert!(forecast_url(&p).starts_with("https://api.open-meteo.com/v1/forecast?latitude=-6.2383&longitude=106.9756&current="));
-        assert_eq!(search_url("Banda Aceh", "id"), "https://geocoding-api.open-meteo.com/v1/search?name=Banda%20Aceh&count=6&language=id&format=json");
+        assert_eq!(search_url("Banda Aceh", "id"), "https://geocoding-api.open-meteo.com/v1/search?name=Banda%20Aceh&count=6&language=id&format=json&countryCode=ID");
         let found = parse_search(&json!({ "results": [{ "name": "Kota Bekasi", "latitude": -6.2349, "longitude": 106.9896, "admin1": "Jawa Barat", "country": "Indonesia" }, { "name": "x" }] }));
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].region, "Jawa Barat, Indonesia");
@@ -153,9 +222,49 @@ mod tests {
         assert_eq!(prayer_keyword("Kota Bekasi"), "bekasi");
         assert_eq!(prayer_keyword("Kabupaten Bogor"), "bogor");
         assert_eq!(prayer_keyword("Bandung"), "bandung");
-        let found = vec![("1203".to_string(), "KAB. BEKASI".to_string()), ("1221".to_string(), "KOTA BEKASI".to_string()), ("9".to_string(), "KOTA BEKASI TIMUR".to_string())];
-        assert_eq!(best_prayer_city("bekasi", &found).unwrap().0, "1221");
-        assert_eq!(best_prayer_city("bekasi", &found[..1]).unwrap().0, "1203");
-        assert!(best_prayer_city("x", &[]).is_none());
+        let all: Vec<(String, String)> = [
+            ("1203", "KAB. BEKASI"),
+            ("1221", "KOTA BEKASI"),
+            ("1301", "KOTA JAKARTA"),
+            ("1402", "KAB. BANYUMAS"),
+            ("1014", "KOTA BANDAR LAMPUNG"),
+            ("1505", "KOTA YOGYAKARTA"),
+            ("1633", "KAB. MALANG"),
+            ("1634", "KOTA MALANG"),
+            ("0319", "KOTA SOLOK"),
+            ("0507", "KOTA TANJUNG PINANG"),
+        ]
+        .iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect();
+        let at = |name: &str, area: &str| match_prayer_city(&Place { name: name.into(), area: area.into(), ..Default::default() }, &all).map(|c| c.1);
+        // As Open-Meteo's geocoding names them (name, admin2).
+        assert_eq!(at("Cikarang", "Kabupaten Bekasi").as_deref(), Some("KAB. BEKASI"));
+        assert_eq!(at("Kota Bekasi", "Kotamadya Bekasi").as_deref(), Some("KOTA BEKASI"));
+        assert_eq!(at("Kota Purwokerto", "Kabupaten Banyumas").as_deref(), Some("KAB. BANYUMAS"));
+        assert_eq!(at("Bandarlampung", "Kotamadya Bandarlampung").as_deref(), Some("KOTA BANDAR LAMPUNG"));
+        assert_eq!(at("DI Yogyakarta", "Kota Yogyakarta").as_deref(), Some("KOTA YOGYAKARTA"));
+        assert_eq!(at("Kabupaten Malang", "Kotamadya Malang").as_deref(), Some("KOTA MALANG"));
+        assert_eq!(at("Jakarta Pusat", "Kotamadya Jakarta Pusat").as_deref(), Some("KOTA JAKARTA"));
+        assert_eq!(at("Jakarta", "").as_deref(), Some("KOTA JAKARTA"));
+        assert_eq!(at("Bekasi", "Kodya Bekasi").as_deref(), Some("KOTA BEKASI"));
+        assert_eq!(at("Tanjungpinang", "").as_deref(), Some("KOTA TANJUNG PINANG"));
+        // A place whose kind is unknown: a kota first.
+        assert_eq!(at("Bekasi", "").as_deref(), Some("KOTA BEKASI"));
+        // Nothing alike: no guess.
+        assert_eq!(at("Lampung", "Kabupaten Sanggau"), None);
+        assert_eq!(at("", ""), None);
+    }
+
+    #[test]
+    fn search_is_indonesian_and_knows_nicknames() {
+        assert!(search_url("Solo", "id").contains("name=Surakarta&") && search_url("Solo", "id").ends_with("&countryCode=ID"));
+        assert!(search_url("jogja", "en").contains("name=Yogyakarta&"));
+        let found = parse_search(&json!({ "results": [{ "name": "Cikarang", "latitude": -6.26, "longitude": 107.15, "admin1": "Jawa Barat", "admin2": "Kabupaten Bekasi", "country": "Indonesia" }] }));
+        assert_eq!(found[0].area, "Kabupaten Bekasi");
+        let r = parse_reverse(&json!({ "city": "Cikarang", "localityInfo": { "administrative": [{ "adminLevel": 4, "name": "Jawa Barat" }, { "adminLevel": 5, "name": "Bekasi", "description": "kabupaten di Provinsi Jawa Barat" }] } }), -6.26, 107.15);
+        assert_eq!(r.area, "Kabupaten Bekasi");
+        let r = parse_reverse(&json!({ "city": "Malang", "localityInfo": { "administrative": [{ "adminLevel": 5, "name": "Malang", "description": "city in East Java" }] } }), 0.0, 0.0);
+        assert_eq!(r.area, "Kota Malang");
     }
 }

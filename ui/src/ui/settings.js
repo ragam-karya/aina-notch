@@ -258,24 +258,35 @@ $('extCopyUrl').onclick = () => {
 // or a city picked here (looked up on Open-Meteo as the person types).
 let locCity = null;
 const LOC_ERRORS = {
-  locationOff: 'Lokasi Windows mati atau belum diizinkan. Nyalakan di Pengaturan Windows → Privasi & keamanan → Lokasi (termasuk "Izinkan aplikasi desktop mengakses lokasi"), lalu tekan Deteksi sekarang.',
-  timeout: 'Windows belum memberi lokasi. Coba lagi sebentar lagi.',
-  noPlace: 'Lokasi belum diketahui.',
+  locationOff: 'Lokasi Windows mati atau belum diizinkan (Pengaturan Windows → Privasi & keamanan → Lokasi, termasuk "Izinkan aplikasi desktop mengakses lokasi").',
+  timeout: 'Perangkat ini belum memberi lokasi (tidak ada GPS atau lokasi Wi-Fi).',
+  noPlace: 'Lokasi perangkat ini tidak diketahui (tidak ada GPS atau lokasi Wi-Fi).',
 };
-const placeText = (p) => [p.name, p.region].filter(Boolean).join(', ');
+// The regency/municipality too, so "Purwokerto" in Banyumas and the village of that name in Sleman differ.
+const placeText = (p) => [p.name, p.area && p.area !== p.name ? p.area : '', p.region].filter(Boolean).join(', ');
 function showLocMode() {
   const city = $('locationMode').value === 'city';
   $('locAutoBox').hidden = city;
   $('locCityBox').hidden = !city;
 }
+// No position from the device: switch to a typed city and say why, with the field ready to type in.
+function askForCity(code) {
+  $('locationMode').value = 'city';
+  showLocMode();
+  if (!locCity) $('locChosen').textContent = `${LOC_ERRORS[code] || 'Lokasi perangkat tidak tersedia.'} Ketik kotamu dulu, lalu simpan.`;
+  setTimeout(() => $('locSearch').focus(), 300);
+}
+let locError = '';
 async function loadLocation() {
   const l = await badi.invoke('location:get');
   $('locationMode').value = l.mode || 'auto';
   $('locationShare').checked = l.share !== false;
   locCity = l.city || null;
+  locError = l.mode !== 'city' && !l.place?.name ? l.error || '' : '';
   $('locChosen').textContent = locCity ? `Dipilih: ${placeText(locCity)}` : 'Belum ada kota.';
   $('locAutoState').textContent = l.mode !== 'city' && l.place?.name ? `Terdeteksi: ${placeText(l.place)}` : l.error ? LOC_ERRORS[l.error] || l.error : 'Belum dideteksi.';
   showLocMode();
+  if (locError) askForCity(locError);
 }
 function locationPatch() {
   const patch = { locationMode: $('locationMode').value, locationShare: $('locationShare').checked };
@@ -292,6 +303,7 @@ $('locDetect').onclick = async () => {
   } catch (e) {
     const code = String(e.message || e);
     $('locAutoState').textContent = LOC_ERRORS[code] || `Belum bisa mendeteksi: ${code}`;
+    askForCity(code);
   }
 };
 let locTimer = 0;
@@ -309,6 +321,7 @@ $('locSearch').oninput = () => {
           b.textContent = placeText(p);
           b.onclick = () => {
             locCity = p;
+            $('locationMode').value = 'city';
             $('locChosen').textContent = `Dipilih: ${placeText(p)} (simpan untuk memakainya)`;
             $('locResults').replaceChildren();
             $('locSearch').value = '';
@@ -388,6 +401,8 @@ badi.on('settings:focus', (id) => {
     $('prayerBox').hidden = false;
     setTimeout(() => $('prayerSearch').focus(), 300);
   }
+  // From the notch's "Masukkan kota" chip: the city field ready to type in.
+  if (id === 'locationCard' && locError) askForCity(locError);
   el.scrollIntoView({ block: 'center' });
   el.classList.add('focus');
   setTimeout(() => el.classList.remove('focus'), 4000);

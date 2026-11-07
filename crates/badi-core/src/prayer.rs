@@ -28,6 +28,11 @@ pub fn search_url(keyword: &str) -> String {
     format!("{API}/kota/cari/{}", enc(keyword))
 }
 
+/// Every city myQuran has (about 518 regencies and municipalities), to match a place against.
+pub fn all_url() -> String {
+    format!("{API}/kota/semua")
+}
+
 /// A month's schedule for a city id.
 pub fn month_url(city_id: &str, year: i32, month: u32) -> String {
     format!("{API}/jadwal/{}/{year}/{month:02}", enc(city_id))
