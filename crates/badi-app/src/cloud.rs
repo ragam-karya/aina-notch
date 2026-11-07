@@ -51,9 +51,9 @@ fn custom_base(app: &AppHandle) -> Option<String> {
     std::env::var("BADI_CLOUD_URL").ok().or_else(|| state(app).store.get("cloudUrl").as_str().filter(|s| !s.is_empty()).map(String::from))
 }
 
-/// Where the pages the browser opens live (signing in, the terms): the same cloud through the
+/// Where the pages the browser opens for reading live (Ketentuan, Privasi): the same cloud through the
 /// website's /api proxy, so the browser shows the website's address instead of the Worker's. The API
-/// calls stay on base(). A cloud address set by hand is used for both.
+/// calls and signing in stay on base(). A cloud address set by hand is used for both.
 pub fn web_base(app: &AppHandle) -> String {
     custom_base(app).unwrap_or_else(|| DEFAULT_WEB_URL.into())
 }
@@ -167,7 +167,7 @@ pub fn login(app: &AppHandle) -> Result<(), String> {
     let part = || std::collections::hash_map::RandomState::new().build_hasher().finish();
     let app_state = format!("{:016x}{:016x}{:016x}{:016x}", part(), part(), part(), part());
     *PENDING.lock().unwrap() = Some((app_state.clone(), std::time::Instant::now()));
-    shell_open(&format!("{}/login?app_state={app_state}", web_base(app)))
+    shell_open(&format!("{}/login?app_state={app_state}", base(app)))
 }
 
 fn http() -> Client {
