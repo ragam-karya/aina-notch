@@ -1,7 +1,7 @@
 {
   "name": "aina",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "aina: the AI notch for Windows (Rust + Tauri 2)",
   "type": "module",
   "scripts": {
