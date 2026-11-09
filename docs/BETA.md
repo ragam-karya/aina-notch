@@ -48,4 +48,4 @@ Kalau kredit habis, notch menampilkan "Kredit habis" dengan tombol **Beli kredit
 - Badi tidak menyimpan API key apa pun di laptopmu; semuanya lewat server Badi Cloud.
 - Pertanyaan, suara, dan tangkapan layar diteruskan ke penyedia AI (Anthropic, OpenAI, ElevenLabs) dan **tidak disimpan** di server Badi.
 - Yang tersimpan di laptopmu: setelan, catatan dikte (di `Documents\Badi\Dikte`), dan daftar file pengetahuan (path-nya saja).
-- Detail: https://badi-cloud.faisalmashuri16.workers.dev/privasi
+- Detail: https://aina.ai.id/api/privasi

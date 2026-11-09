@@ -44,9 +44,9 @@ Dengan memasang aina, kamu memahami dan menyetujui:
    kami terbatas pada nilai pembelian kredit dalam 30 hari terakhir.
 
 Ketentuan Layanan lengkap:
-https://badi-cloud.faisalmashuri16.workers.dev/ketentuan
+https://aina.ai.id/api/ketentuan
 
 Kebijakan privasi lengkap:
-https://badi-cloud.faisalmashuri16.workers.dev/privasi
+https://aina.ai.id/api/privasi
 
 (c) Faisal Mashuri

@@ -19,7 +19,7 @@ use crate::AppState;
 // Set when building (BADI_CLOUD_URL=… npm run build), so an installed app needs no environment.
 const DEFAULT_URL: &str = match option_env!("BADI_CLOUD_URL") {
     Some(u) => u,
-    None => "https://badi-cloud.faisalmashuri16.workers.dev",
+    None => "https://be.aina.ai.id",
 };
 // Set when building (BADI_WEB_URL=…), like BADI_CLOUD_URL.
 const DEFAULT_WEB_URL: &str = match option_env!("BADI_WEB_URL") {

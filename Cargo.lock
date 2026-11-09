@@ -290,7 +290,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "badi-agent"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "badi-input",
  "badi-llm",
@@ -309,7 +309,7 @@ dependencies = [
 
 [[package]]
 name = "badi-app"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "badi-agent",
  "badi-apps",
@@ -341,7 +341,7 @@ dependencies = [
 
 [[package]]
 name = "badi-apps"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "badi-agent",
  "badi-core",
@@ -358,7 +358,7 @@ dependencies = [
 
 [[package]]
 name = "badi-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "chrono",
  "serde",
@@ -367,7 +367,7 @@ dependencies = [
 
 [[package]]
 name = "badi-input"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "badi-llm"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "badi-net",
  "chrono",
@@ -388,11 +388,11 @@ dependencies = [
 
 [[package]]
 name = "badi-net"
-version = "1.0.0"
+version = "1.0.1"
 
 [[package]]
 name = "badi-screen"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "badi-input",
  "base64 0.22.1",
@@ -403,7 +403,7 @@ dependencies = [
 
 [[package]]
 name = "badi-store"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
@@ -414,7 +414,7 @@ dependencies = [
 
 [[package]]
 name = "badi-uia"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "regex",
  "serde_json",
@@ -423,7 +423,7 @@ dependencies = [
 
 [[package]]
 name = "badi-voice"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "badi-net",
  "reqwest 0.12.28",
