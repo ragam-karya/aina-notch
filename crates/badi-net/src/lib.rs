@@ -92,10 +92,10 @@ mod tests {
         set_cloud(None);
         assert_eq!(url(Service::Anthropic, "/v1/messages"), "https://api.anthropic.com/v1/messages");
         assert!(task_headers().is_empty());
-        set_cloud(Some("https://badi-cloud.faisalmashuri16.workers.dev/".into()));
-        assert_eq!(url(Service::Anthropic, "/v1/messages"), "https://badi-cloud.faisalmashuri16.workers.dev/v1/messages");
-        assert_eq!(url(Service::ElevenLabs, "/v1/text-to-speech/x/stream"), "https://badi-cloud.faisalmashuri16.workers.dev/eleven/v1/text-to-speech/x/stream");
-        assert_eq!(url(Service::Composio, "/api/v3.1/tools/X"), "https://badi-cloud.faisalmashuri16.workers.dev/composio/api/v3.1/tools/X");
+        set_cloud(Some("https://be.aina.ai.id/".into()));
+        assert_eq!(url(Service::Anthropic, "/v1/messages"), "https://be.aina.ai.id/v1/messages");
+        assert_eq!(url(Service::ElevenLabs, "/v1/text-to-speech/x/stream"), "https://be.aina.ai.id/eleven/v1/text-to-speech/x/stream");
+        assert_eq!(url(Service::Composio, "/api/v3.1/tools/X"), "https://be.aina.ai.id/composio/api/v3.1/tools/X");
         assert_eq!(task_headers(), vec![("x-badi-kind", "tanya".to_string())]);
         let inside = with_task("kerjakan", "t1", task_headers);
         assert_eq!(inside[1], ("x-badi-task", "t1".to_string()));
