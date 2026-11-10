@@ -1,4 +1,4 @@
-// Badi's Rive character (assets/badi.riv) for any page: badiRive(canvas, { artboards }) plays the
+// aina's Rive character (assets/aina-eyes.riv) for any page: ainaRive(canvas, { artboards }) plays the
 // "BADI" state machine and returns a small controller. Inputs (the file's contract):
 //   state          0 idle · 1 listening · 2 thinking · 3 speaking · 4 success · 5 error
 //   lookX          -1…1, where it looks (full body and BADI_Eyes)
@@ -11,7 +11,7 @@
   const url = (p) => new URL(p, location.href).href;
   let wasmSet = false;
 
-  window.badiRive = function badiRive(canvas, { artboards = ['BADI'], state = 0 } = {}) {
+  window.ainaRive = function ainaRive(canvas, { artboards = ['BADI'], state = 0 } = {}) {
     const ctl = { ready: false, failed: false, onReady: null, onFail: null, want: { state }, inputs: {}, r: null, paused: false };
     if (!window.rive || !canvas) {
       ctl.failed = true;
@@ -23,7 +23,7 @@
     }
     const start = (artboard) => {
       const r = new rive.Rive({
-        src: url('../../assets/badi.riv'),
+        src: url('../../assets/aina-eyes.riv'),
         canvas,
         artboard,
         stateMachines: 'BADI',
@@ -54,7 +54,7 @@
     return attach(ctl);
   };
 
-  // The mascot (aina-v1.0.0/badi-mascot, assets/badi-mascot.riv): badiMascot(canvas, { artboard }) plays the
+  // The mascot (aina-v1.0.0/aina-mascot, assets/aina-mascot.riv): ainaMascot(canvas, { artboard }) plays the
   // BADIController state machine, driven through the bound view model BADI rather than inputs:
   //   state        idle listening thinking speaking success error alert guiding sleeping annoyed dizzy
   //   mode         compact | expanded
@@ -63,7 +63,7 @@
   //   isListening isThinking isSpeaking isAnnoyed isDizzy (flags over state), audioLevel 0–1
   // One instance lives as long as its page: expressions and sizes only write view model values, and
   // the canvas may move between places (resize() after a move). destroy() releases it.
-  window.badiMascot = function badiMascot(canvas, { artboard = 'Compact', src = '../../assets/badi-mascot.riv', autoplay = false } = {}) {
+  window.ainaMascot = function ainaMascot(canvas, { artboard = 'Compact', src = '../../assets/aina-mascot.riv', autoplay = false } = {}) {
     const ctl = { ready: false, failed: false, onReady: null, onFail: null, want: {}, props: {}, r: null, paused: !autoplay, rendering: true };
     ctl.set = (name, value) => {
       if (ctl.want[name] === value) return false;

@@ -27,7 +27,7 @@ aside { border-right: 1px solid var(--line); padding: 18px 14px; overflow: auto;
 #messages.switch { animation: fade-in .3s var(--ease-out) both; }
 @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } }
 .msg { max-width: 760px; margin-bottom: 14px; }
-/* A new message comes up from its own side: the user's from the right, Badi's from the left. */
+/* A new message comes up from its own side: the user's from the right, aina's from the left. */
 .msg.enter { animation: msg-in .42s var(--ease-out) both; }
 .msg.user.enter { transform-origin: 100% 100%; }
 .msg.assistant.enter { transform-origin: 0 100%; }
@@ -36,7 +36,7 @@ aside { border-right: 1px solid var(--line); padding: 18px 14px; overflow: auto;
 .msg.assistant { background: var(--panel); border: 1px solid var(--line); padding: 12px 15px; border-radius: 16px 16px 16px 4px; box-shadow: var(--shadow); }
 .msg.working { display: inline-flex; align-items: center; gap: 10px; width: fit-content; padding: 10px 14px; }
 .msg.working .hint { margin: 0; }
-/* Three dots that bob while Badi works. */
+/* Three dots that bob while aina works. */
 .typing { display: inline-flex; gap: 4px; }
 .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: bob 1.1s ease-in-out infinite; }
 .typing i:nth-child(2) { animation-delay: .15s; }
@@ -76,7 +76,7 @@ dialog::backdrop { background: rgba(0,0,0,.35); backdrop-filter: blur(3px); }
 #diffDialog .dv-body { max-height: 68vh; }
 #diffDialog button { background: rgba(255,255,255,.08); color: #e9eef6; }
 
-/* Badi himself (Rive): a head in the sidebar, the full body on the empty page. */
+/* aina himself (Rive): a head in the sidebar, the full body on the empty page. */
 .aside-head h1 { display: flex; align-items: center; gap: 6px; }
-.badi-head { width: 34px; height: 28px; }
-.badi-body { display: block; width: 170px; height: 178px; margin: 0 auto 8px; cursor: pointer; }
+.aina-head { width: 34px; height: 28px; }
+.aina-body { display: block; width: 170px; height: 178px; margin: 0 auto 8px; cursor: pointer; }

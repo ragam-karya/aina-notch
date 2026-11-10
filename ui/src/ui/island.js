@@ -1,9 +1,9 @@
 // Dynamic Island: a notch joined to the top edge of the display picked for this turn, like the Mac's.
 // At rest it is a small black notch. When the hotkey is pressed it springs open, shows a live audio
-// wave while listening and while Badi talks, and types out what Badi says in sync with the voice.
+// wave while listening and while aina talks, and types out what aina says in sync with the voice.
 // It is also the smart notch. Modes, by priority:
 //   turn   a question or answer is on (Stop button on hover, approval buttons under the text)
-//   drop   Badi waits for a dropped folder or files: the notch is the drop zone (file-upload.json)
+//   drop   aina waits for a dropped folder or files: the notch is the drop zone (file-upload.json)
 //   upload a small notch with a cloud (cloud.json) over a progress bar
 //   panel  a panel from main (a finished task, an upload done, a timer)
 //   peek   hovered while idle: clock, timer, what's playing, agents, reminders, shortcuts
@@ -17,6 +17,7 @@
   const el = document.getElementById('island');
   const content = el.querySelector('.content');
   const labelEl = el.querySelector('.label');
+  const rcolEl = el.querySelector('.rcol');
   const youEl = el.querySelector('.you');
   const sayEl = el.querySelector('.say');
   const wave = el.querySelector('canvas.wave');
@@ -26,48 +27,49 @@
   const peekEl = el.querySelector('.peek-body');
   const miniEl = el.querySelector('.mini');
   const miniText = el.querySelector('.mini-text');
-  const miniClock = el.querySelector('.mini .mini-clock');
+  const miniSub = el.querySelector('.mini-sub');
+  const miniMain = el.querySelector('.mini-main');
   const miniRing = (() => {
-    const r = ring(20, 2.6);
+    const r = ring(18, 2.4);
     el.querySelector('.mini .mini-ring').append(r.el);
-    if (window.badiIcon) el.querySelector('.mini .mini-ico').append(window.badiIcon('folder', 13));
+    if (window.ainaIcon) el.querySelector('.mini .mini-ico').append(window.ainaIcon('folder', 13));
     return r;
   })();
   const dzTitle = el.querySelector('.dz-title');
   const dzHint = el.querySelector('.dz-hint');
   const barEl = el.querySelector('.bar i');
+  const upTitle = el.querySelector('.uhead .utitle');
+  const upPct = el.querySelector('.uhead .upct');
 
-  // Badi in the notch (Rive badi-mascot.riv, src/ui/rive.js). One instance for the page's whole life,
+  // aina in the notch (Rive aina-mascot.riv, src/ui/rive.js). One instance for the page's whole life,
   // on one canvas that moves to wherever he shows: the turn row (in place of the orb), the compact
   // pill while a song without a cover plays, or beside the clock in the peek. Every Rive frame
   // repaints the full-screen overlay, so he draws only while shown: every frame while something
   // happens (a turn, the peek), otherwise in short bursts (a blink every few seconds, a new
   // expression), and not at all while hidden. The orb shows until he loads; if he can't, the old
-  // eyes (badi.riv) take his place in the turn row.
+  // eyes (aina-eyes.riv) take his place in the turn row.
   const mascotCanvas = el.querySelector('canvas.face');
-  const mascot = window.badiMascot(mascotCanvas);
+  const mascot = window.ainaMascot(mascotCanvas);
   mascot.onReady = () => el.classList.add('has-face');
   let eyes = null;
   const EYE_STATE = { idle: 0, listening: 1, alert: 1, thinking: 2, speaking: 3, guiding: 3, success: 4, error: 5, sleeping: 0 };
   mascot.onFail = () => {
     const c = document.createElement('canvas');
     c.className = 'eyes';
-    labelEl.before(c);
-    eyes = window.badiRive(c, { artboards: ['BADI_Eyes', 'BADI_Micro'] });
+    rcolEl.before(c);
+    eyes = window.ainaRive(c, { artboards: ['BADI_Eyes', 'BADI_Micro'] });
     eyes.pause();
     eyes.onReady = () => el.classList.add('has-eyes');
   };
-  // The compact pill's picture while a song plays: its cover, or Badi when it has none.
-  const miniArt = document.createElement('span');
-  miniArt.className = 'mini-art';
+  // The compact pill's picture, on its left: aina, or a playing song's cover when it has one.
+  const miniArt = el.querySelector('.mini-art');
   const miniCover = document.createElement('img');
   miniCover.alt = '';
   miniArt.append(miniCover);
-  miniText.before(miniArt);
   // Beside the peek's clock; it outlives the peek's rebuilds (renderPeek puts it back each time).
-  const peekBadi = document.createElement('div');
-  peekBadi.className = 'peek-badi';
-  const SLOTS = { row: () => labelEl.before(mascotCanvas), mini: () => miniArt.append(mascotCanvas), peek: () => peekBadi.append(mascotCanvas) };
+  const peekMascot = document.createElement('div');
+  peekMascot.className = 'peek-mascot';
+  const SLOTS = { row: () => rcolEl.before(mascotCanvas), mini: () => miniArt.append(mascotCanvas), peek: () => peekMascot.append(mascotCanvas) };
   // slot: where the canvas is. draw: 'live' every frame, 'burst' now and then, 'off' not at all.
   const M = { slot: 'row', draw: 'off', until: 0, playing: false, timer: 0, lastX: 0, dir: 0, turns: [], clicks: [], flags: {} };
   const ac = new AbortController();
@@ -160,7 +162,7 @@
     if (!raf) raf = requestAnimationFrame(frame);
   };
   const on = (channel, fn) =>
-    badi.on(channel, (payload) => {
+    aina.on(channel, (payload) => {
       fn(payload);
       wake();
     });
@@ -187,6 +189,7 @@
     panel: null, // { id, kind, title, lines, actions } from main
     status: { agents: [], timer: null, reminders: [], focus: null, media: null, shortcuts: [] },
     hover: false, // the cursor is on the notch
+    typing: false, // the Home page's quick box has the keyboard (the peek stays open meanwhile)
     peekSince: 0,
     view: 'rest', // the current mode
     target: { w: 128, h: 8 }, // the size the notch is springing toward
@@ -195,7 +198,7 @@
     art: { key: '', src: null }, // the playing track's cover (media:art)
     lyrics: { key: '', lines: null }, // its synced lyrics, [[ms, text]] (media:lyrics)
     trackUntil: 0, // the track card shows until then (a new song started)
-    lyricsOpen: false, // the music page shows the lyrics panel (clicked)
+    lyricsOpen: false, // the music page shows the lyrics column; closed, the line being sung sits under the title
     dragging: false, // the volume bar is being dragged
     volume: null, // the volume as dragged, until main reports it back
     taskView: 'active', // the tasks page shows the active tasks or the history
@@ -204,7 +207,6 @@
     cal: null, // the reminder page's data (calendar:data)
     calDay: 0, // the day chosen on the reminder page (local midnight), 0 for today
     calAsk: null, // { id, kind: 'delete' | 'snooze', until }: a row asking before it acts
-    prayerOpen: false, // the prayer section shows the whole day
     fullscreen: false, // an app fills this display: the notch hides until called up
     revealed: false, // called up over a full-screen app (the cursor rested at the very top)
     calView: '', // a view picked on the reminder page for this look ('' : the one from Settings)
@@ -253,14 +255,18 @@
   // Growing is a little underdamped, so the notch opens with a small, soft overshoot; shrinking is
   // nearly critically damped, so it tucks away without wobbling. A hovered rest notch "blooms" a bit
   // before the peek opens, so the notch answers the cursor at once.
+  // Sizes from the notch design (w x h, radius, ears): rest 132x28, the pill 264x36, the peek 800x256,
+  // a turn 600 wide (72 tall while listening, growing with the answer).
   const SIZES = {
-    rest: { w: 128, h: 8, r: 8, ear: 6 },
-    restHover: { w: 152, h: 13, r: 11, ear: 7 },
-    mini: { w: 220, h: 46, r: 20, ear: 10 }, // the compact pill: 46 px (48 hovered)
-    compact: { w: 300, h: 46, r: 18, ear: 10 },
+    rest: { w: 132, h: 28, r: 14, ear: 8 },
+    restHover: { w: 152, h: 30, r: 15, ear: 9 },
+    mini: { w: 264, h: 36, r: 18, ear: 10 }, // the compact pill: 36 px (38 hovered)
+    turn: { w: 600, h: 72, r: 26, ear: 14 },
+    peek: { w: 800, h: 256, r: 30, ear: 14 },
   };
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const wideWidth = () => Math.min(640, innerWidth * 0.9);
+  const fitWidth = (w) => Math.min(w, innerWidth * 0.9);
+  const wideWidth = () => fitWidth(600);
   const spring = (x) => ({ x, v: 0 });
   const S = { w: spring(SIZES.rest.w), h: spring(SIZES.rest.h), r: spring(SIZES.rest.r), ear: spring(SIZES.rest.ear) };
   const K = 320;
@@ -355,7 +361,7 @@
     if (I.view === 'peek' && !I.dragging) renderPeek();
     if (I.view === 'track') renderTrack();
   });
-  // Music (B.A.D.I. v2): the track's cover and synced lyrics, each sent once per track; a new track
+  // Music (aina v2): the track's cover and synced lyrics, each sent once per track; a new track
   // opens the track card for a moment (the expanded state), unless the notch is being hovered.
   on('media:art', (a) => {
     I.art = a || { key: '', src: null };
@@ -369,7 +375,6 @@
   on('media:track', () => {
     pageId = 'media';
     I.trackAt = performance.now();
-    I.lyricsOpen = false;
     if (!I.hover) I.trackUntil = performance.now() + 4500;
   });
 
@@ -396,8 +401,14 @@
       if (what === 'day') selectDay(Number(a));
       if (what === 'daynav') selectDay(addDays(calDay(), Number(a)));
       if (what === 'today') selectDay(Date.now());
-      if (what === 'weeknav') selectDay(addDays(calDay(), 14 * Number(a)));
-      if (what === 'prayer') I.prayerOpen = !I.prayerOpen;
+      // The calendar's arrows move a month, to the same date (or the month's last day if it is shorter).
+      if (what === 'monthnav') {
+        const d = new Date(calDay());
+        const m = d.getMonth() + Number(a);
+        selectDay(new Date(d.getFullYear(), m, Math.min(d.getDate(), new Date(d.getFullYear(), m + 1, 0).getDate())).getTime());
+      }
+      // The prayer line opens the prayer page.
+      if (what === 'prayer' && pageIds.includes('prayer')) return goToPage('prayer');
       if (what === 'view') I.calView = a;
       if (what === 'ask') I.calAsk = { kind: a, id: rest.join(':'), until: Date.now() + 8000 };
       if (what === 'askoff') I.calAsk = null;
@@ -430,24 +441,25 @@
       const r = seek.getBoundingClientRect();
       const ms = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * m.dur);
       Object.assign(m, { pos: ms, at: Date.now() }); // shown at once; main reads it back shortly
-      return badi.send('island:act', `media:seek:${ms}`);
+      return aina.send('island:act', `media:seek:${ms}`);
     }
-    const b = e.target.closest('button[data-act]');
-    if (b) badi.send('island:act', b.dataset.act);
+    // A button, or a tile standing for one (the Notes & knowledge page).
+    const b = e.target.closest('button[data-act], .htile[data-act]');
+    if (b) aina.send('island:act', b.dataset.act);
   });
   // A button with a line icon (icons.js) before its label, or only the icon when there is no label.
   const button = (act, label, tone = '', icon = '') => {
     const b = document.createElement('button');
     b.dataset.act = act;
-    // "Io…" names are react-icons (reacticons.js); the rest are Badi's own line icons.
-    const svg = icon && (/^Io[A-Z]/.test(icon) ? window.badiReactIcon?.(icon, 15) : window.badiIcon?.(icon, 15));
+    // "Io…" names are react-icons (reacticons.js); the rest are aina's own line icons.
+    const svg = icon && (/^Io[A-Z]/.test(icon) ? window.ainaReactIcon?.(icon, 15) : window.ainaIcon?.(icon, 15));
     if (svg) b.append(svg);
     if (label) b.append(icon ? ' ' : '', label);
     else if (icon) b.setAttribute('aria-label', icon);
     b.className = [tone, icon && !label ? 'icon' : ''].filter(Boolean).join(' ');
     return b;
   };
-  const icon = (name, size) => (window.badiIcon ? window.badiIcon(name, size) : document.createTextNode(''));
+  const icon = (name, size) => (window.ainaIcon ? window.ainaIcon(name, size) : document.createTextNode(''));
   // A progress ring (the timer): set(frac) with frac the share still left, 1 → 0.
   function ring(size, width) {
     const NS = 'http://www.w3.org/2000/svg';
@@ -474,8 +486,8 @@
   // What the timer has left (ms): where it was held while paused, else down to endsAt. Worked out
   // from the clock every frame, so it never jumps or starts over when the page changes.
   const timerMs = (t) => (t ? Math.max(0, t.paused ? t.left : t.endsAt - Date.now()) : 0);
-  // The share of the phase already gone: the ring fills as time passes.
-  const timerDone = (t) => (t && t.ms ? 1 - timerMs(t) / t.ms : 0);
+  // The share of the phase still left (1 at its start, 0 at its end): the ring empties with the time.
+  const timerLeft = (t) => (t && t.ms ? timerMs(t) / t.ms : 0);
   // The pomodoro phase: "work" | "short" | "long" ("break" from v1 is a short one); "" for a timer.
   const phaseOf = (t) => (t?.phase === 'break' ? 'short' : t?.phase || '');
   const mmss = (ms) => {
@@ -491,7 +503,7 @@
     return d;
   };
 
-  // A dictation note (B.A.D.I. v2): the summary above the text, scrolling inside the notch when long.
+  // A dictation note (aina v2): the summary above the text, scrolling inside the notch when long.
   function noteEl(n) {
     const box = div('note');
     if (n.summary) {
@@ -503,7 +515,7 @@
     return box;
   }
 
-  // A list panel (B.A.D.I. v2: the notes, the knowledge base): rows to click, × to remove, scrolling.
+  // A list panel (aina v2: the notes, the knowledge base): rows to click, × to remove, scrolling.
   function listEl(rows) {
     const box = div('plist');
     if (!rows.length) box.append(div('sub', '—'));
@@ -526,6 +538,8 @@
     linesEl.replaceChildren(...(p?.title ? [div('ptitle', p.title)] : []), ...(p?.lines || []).map((l) => div('', l)), ...(p?.note ? [noteEl(p.note)] : []), ...(p?.list ? [listEl(p.list)] : []));
     dzTitle.textContent = p?.kind === 'drop' ? p.title : '';
     dzHint.textContent = p?.kind === 'drop' ? p.lines?.[0] || '' : '';
+    // The upload row: what main calls it (the file), the percentage drawn in frame().
+    if (p?.kind === 'upload' && (p.title || !upTitle.textContent)) upTitle.textContent = p.title || 'Google Drive';
     actionsEl.replaceChildren(...(p?.actions || []).map((a) => button(a.id, a.label, a.tone)));
   }
 
@@ -546,7 +560,7 @@
     return (p.i + from + (to - from) * (1 - Math.exp(-t / tau))) / p.n;
   }
   // The eyes' state input: 0 idle · 1 listening · 2 thinking · 3 speaking · 4 success · 5 error.
-  // Badi's expression for what the notch shows (the mascot's state enum). In the peek after ten quiet
+  // aina's expression for what the notch shows (the mascot's state enum). In the peek after ten quiet
   // minutes he dozes off.
   function faceState(view, listening, busy, waiting, now = performance.now()) {
     if (I.error) return 'error';
@@ -653,64 +667,72 @@
   // Favourites and the queue are not offered: Windows' media session doesn't expose them.
   function mediaItem(m) {
     mediaRefs = [];
-    const it = div(`item media widget${m.playing ? ' playing' : ''}`);
-    const top = div('mtop');
-    const cover = coverEl(m, 'md');
     const lines = lyricLines(m);
+    const lyricsCol = Boolean(lines) && I.lyricsOpen;
+    const it = div(`item media widget${m.playing ? ' playing' : ''}`);
+    const cover = coverEl(m, 'xl');
     if (lines) cover.dataset.local = 'lyrics';
-    const g = div('grow');
-    const lyric = div('lyric');
-    g.append(div('main', m.title), div('sub', [m.artist, m.album].filter(Boolean).join(' · ') || m.app || ''));
-    if (lines && !I.lyricsOpen) g.append(lyric);
-    const ctl = div('ctl');
-    ctl.append(capBtn(m, 'previous', 'media:previous', '', 'IoPlaySkipBack'), capBtn(m, 'playPause', 'media:play_pause', 'play', m.playing ? 'IoPause' : 'IoPlay'), capBtn(m, 'next', 'media:next', '', 'IoPlaySkipForward'));
-    top.append(cover, g, ctl);
-    it.append(top);
-    // The lyrics panel: the line before, the one sung now, and the next.
-    if (lines && I.lyricsOpen) {
-      const panel = div('lyrics');
-      const prev = div('l prev');
-      const now = div('l now');
-      const next = div('l next');
-      panel.append(prev, now, next);
-      it.append(panel);
-      mediaRefs.push({ lines, prev, now, next });
-    } else if (lines) mediaRefs.push({ lines, now: lyric });
+    const col = div('mcol');
+    const head = div('mhead');
+    head.append(div('main', m.title), div('sub', [m.artist, m.album].filter(Boolean).join(' · ') || m.app || ''));
+    col.append(head);
+    // With the lyrics column closed, the line being sung sits under the title.
+    if (lines && !lyricsCol) {
+      const lyric = div('lyric');
+      col.append(lyric);
+      mediaRefs.push({ lines, now: lyric });
+    }
     const prog = progressEl(m, !m.caps || m.caps.seek);
-    if (prog) it.append(prog);
-    const tools = div('mtools');
-    // The player: its name, opening it.
-    if (m.app) tools.append(button('media:open', m.app, 'src', 'IoOpenOutline'));
-    const vol = volumeEl(m);
-    if (vol) tools.append(vol);
-    const right = div('mright');
-    if (m.caps?.shuffle) right.append(button('media:shuffle', '', m.shuffle ? 'on' : '', 'IoShuffle'));
+    if (prog) col.append(prog);
+    // Playback (shuffle, previous, play/pause, next, repeat) on the left, the volume on the right.
+    const row = div('mctl');
+    const ctl = div('ctl');
+    if (m.caps?.shuffle) ctl.append(button('media:shuffle', '', m.shuffle ? 'on' : '', 'IoShuffle'));
+    ctl.append(capBtn(m, 'previous', 'media:previous', '', 'IoPlaySkipBack'), capBtn(m, 'playPause', 'media:play_pause', 'play', m.playing ? 'IoPause' : 'IoPlay'), capBtn(m, 'next', 'media:next', '', 'IoPlaySkipForward'));
     if (m.caps?.repeat) {
       const b = button('media:repeat', '', m.repeat && m.repeat !== 'none' ? 'on' : '', 'IoRepeat');
       if (m.repeat === 'track') b.append(div('one', '1'));
-      right.append(b);
+      ctl.append(b);
     }
+    row.append(ctl);
+    const vol = volumeEl(m);
+    if (vol) row.append(vol);
+    col.append(row);
+    // The player (its name opens it), the lyrics switch and the sound output.
+    const tools = div('mtools');
+    if (m.app) tools.append(button('media:open', m.app, 'src', 'IoOpenOutline'));
+    const right = div('mright');
     if (lines) {
-      const b = button('', '', I.lyricsOpen ? 'on' : '', 'IoReaderOutline');
-      delete b.dataset.act;
-      b.dataset.local = 'lyrics';
+      const b = localButton('lyrics', '', I.lyricsOpen ? 'on' : '', 'IoReaderOutline');
+      b.title = label('musicLyrics', 'Lirik');
       right.append(b);
     }
-    if (m.volume != null) right.append(button('sound:output', '', '', 'IoHeadsetOutline'));
+    if (m.volume != null) right.append(tip(button('sound:output', '', '', 'IoHeadsetOutline'), label('musicOutput', 'Output suara')));
     tools.append(right);
-    it.append(tools);
+    col.append(tools);
+    it.append(cover, col);
+    // The lyrics column: the line before, the one sung now (bright), and the two after.
+    if (lyricsCol) {
+      const lc = div('lcol');
+      const prev = div('l prev');
+      const now = div('l now');
+      const next = div('l next');
+      const after = div('l');
+      lc.append(prev, now, next, after, div('lsrc', label('musicLyricsSrc', 'Lirik · LRCLIB')));
+      it.append(lc);
+      mediaRefs.push({ lines, prev, now, next, after });
+    }
     return it;
   }
   // Nothing playing: the page still opens from its tab, with a stand-in cover and a hint.
   function mediaIdle() {
     const it = div('item media widget idle');
-    const top = div('mtop');
-    const art = div('art md');
-    art.append(icon('music', 20));
-    const g = div('grow');
-    g.append(div('main', LABELS.musicNone || 'Tidak ada musik diputar'), div('sub', LABELS.musicNoneHint || 'Putar lagu di Spotify, YouTube, atau pemutar lain'));
-    top.append(art, g);
-    it.append(top);
+    const art = div('art xl');
+    art.append(icon('music', 24));
+    const col = div('mcol');
+    col.append(div('main', LABELS.musicNone || 'Tidak ada musik diputar'), div('sub', LABELS.musicNoneHint || 'Putar lagu di Spotify, YouTube, atau pemutar lain'));
+    col.style.justifyContent = 'center';
+    it.append(art, col);
     return it;
   }
   // The expanded state: shown by itself for a moment when a new song starts.
@@ -724,7 +746,7 @@
     const prog = progressEl(m, false);
     if (prog) g.append(prog);
     const ctl = div('ctl');
-    const ri = (name, size) => window.badiReactIcon?.(name, size) || icon('music', size);
+    const ri = (name, size) => window.ainaReactIcon?.(name, size) || icon('music', size);
     ctl.append(ri('IoPlaySkipBack', 15), ri(m.playing ? 'IoPause' : 'IoPlay', 17), ri('IoPlaySkipForward', 15));
     trackEl.replaceChildren(coverEl(m, 'lg'), g, ctl);
   }
@@ -745,6 +767,7 @@
           if (r.prev) {
             r.prev.textContent = text(i - 1);
             r.next.textContent = text(i + 1);
+            if (r.after) r.after.textContent = text(i + 2);
             r.now.classList.remove('swap');
             void r.now.offsetWidth;
             r.now.classList.add('swap');
@@ -762,7 +785,7 @@
     const now = performance.now();
     if (final || now - volSent > 80) {
       volSent = now;
-      badi.send('island:act', `volume:${Math.round(I.volume * 100)}`);
+      aina.send('island:act', `volume:${Math.round(I.volume * 100)}`);
     }
   }
   el.addEventListener('pointerdown', (e) => {
@@ -797,46 +820,59 @@
     for (let i = 0; i < n; i++) box.append(div(i < done ? 'r done' : i === done && ph === 'work' ? 'r now' : 'r'));
     return box;
   }
+  // The controls as labelled pills: Start/Pause (blue), Skip, Reset, Stop (red), then the settings.
   function timerControls(t) {
     const ctl = div('pctl');
     if (t.left === undefined) {
-      ctl.append(button('timerOff', '', 'danger', 'IoStop'));
+      ctl.append(button('timerOff', label('pomoStop', 'Stop'), 'danger', 'IoStop'));
       return ctl;
     }
-    ctl.append(t.paused ? button('timer:start', '', 'primary-ic', 'IoPlay') : button('timer:pause', '', 'primary-ic', 'IoPause'));
-    if (t.phase) ctl.append(button('timer:skip', '', '', 'IoPlaySkipForward'));
-    ctl.append(button('timer:reset', '', '', 'IoRefresh'), button('timerOff', '', 'danger', 'IoStop'));
-    if (t.phase) ctl.append(button('timer:settings', '', 'end', 'IoSettingsOutline'));
+    const fresh = t.left === t.ms;
+    ctl.append(t.paused ? button('timer:start', fresh ? label('pomoStart', 'Mulai') : label('pomoResume', 'Lanjut'), 'primary', 'IoPlay') : button('timer:pause', label('pomoPause', 'Jeda'), 'primary', 'IoPause'));
+    if (t.phase) ctl.append(button('timer:skip', label('pomoSkip', 'Lewati')));
+    ctl.append(button('timer:reset', label('pomoReset', 'Ulang')), button('timerOff', label('pomoStop', 'Stop'), 'danger'));
+    if (t.phase) ctl.append(tip(button('timer:settings', '', '', 'IoSettingsOutline'), label('pomoSettings', 'Pengaturan pomodoro')));
     return ctl;
+  }
+  // Today's figures under the controls, the number large: "3 sesi hari ini · selesai 10.25".
+  function pomoStats(today, extra) {
+    const row = div('pstats');
+    if (today != null) {
+      const s = document.createElement('span');
+      const b = document.createElement('b');
+      b.textContent = today;
+      s.append(b, label('pomoTodayUnit', 'sesi hari ini'));
+      row.append(s);
+    }
+    for (const x of extra) if (x) row.append(x);
+    return row;
   }
   function timerItem(t, st) {
     const ph = phaseOf(t);
     const waiting = t.paused && t.left === t.ms; // a phase that waits for Start (auto-start off)
     const it = div(`item widget pomo${ph ? ` phase-${ph}` : ''}${t.paused ? ' paused' : ''}`);
-    peekRing = ring(64, 5);
+    peekRing = ring(124, 7);
+    peekRing.set(timerLeft(t)); // drawn where it is now, not swept in from full on every rebuild
     const dial = div('dial');
     countEl = div('count');
-    dial.append(peekRing.el, countEl);
-    if (t.paused) dial.append(div('dstate', waiting ? LABELS.pomoReady || 'Siap' : LABELS.pomoPaused || 'Dijeda'));
+    // Under the countdown: the phase and "2/4", or why it holds still.
+    const state = t.paused ? (waiting ? label('pomoReady', 'Siap') : label('pomoPaused', 'Dijeda')) : [timerLabel(t), ph && t.sessions ? `${t.round}/${t.sessions}` : ''].filter(Boolean).join(' · ');
+    dial.append(peekRing.el, countEl, div('dstate', state));
     const g = div('grow');
     const head = div('phead');
     head.append(div('main', timerLabel(t)));
     if (ph && t.sessions) head.append(div('sub', fill(LABELS.pomoSession || 'Sesi {n} dari {m}', { n: t.round, m: t.sessions })));
+    if (ph) head.append(segments(t));
     g.append(head);
-    const meta = div('meta');
-    if (ph) meta.append(segments(t));
-    const ends = div('ends');
+    g.append(timerControls(t));
+    const ends = div('ends today');
     ends.append(icon('flag', 12));
     const endsText = document.createElement('span');
     ends.append(endsText);
     endsRef = { el: endsText, t };
-    meta.append(ends);
-    if (ph && st.pomodoro) meta.append(div('today', fill(LABELS.pomoToday || '{n} sesi hari ini', { n: st.pomodoro.today })));
-    g.append(meta);
-    // Linked work: the timer's own label, and the folder Badi is focused on.
+    // Linked work: the timer's own label, and the folder aina is focused on.
     const tags = [ph && t.label, st.focus].filter(Boolean);
-    if (tags.length) g.append(div('ptags', tags.join(' · ')));
-    g.append(timerControls(t));
+    g.append(pomoStats(ph && st.pomodoro ? st.pomodoro.today : null, [ends, tags.length ? div('ptags', tags.join(' · ')) : null]));
     it.append(dial, g);
     return it;
   }
@@ -852,22 +888,18 @@
   function pomodoroIdle(p) {
     const c = p.config;
     const it = div('item widget pomo idle phase-work');
-    const r = ring(64, 5);
-    r.set(0);
+    const r = ring(124, 7);
+    r.set(1); // ready: the whole phase still ahead
     const dial = div('dial');
-    dial.append(r.el, div('count', mmss(c.focusMin * 60000)));
+    dial.append(r.el, div('count', mmss(c.focusMin * 60000)), div('dstate', `${label('pomoFocus', 'Fokus')} · ×${c.sessions}`));
     const g = div('grow');
-    const head = div('phead');
-    head.append(div('main', 'Pomodoro'), div('sub', `${c.focusMin}/${c.shortMin}/${c.longMin} · ×${c.sessions}`));
-    g.append(head);
     const chips = div('presets');
     chips.append(...(p.presets || []).map((pr) => button(`timer:preset:${pr.id}`, pr.name, pr.id === p.preset ? 'chip on' : 'chip')));
     g.append(chips);
     const ctl = div('pctl');
-    ctl.append(button('timer:start', LABELS.pomoStart || 'Mulai', 'primary', 'IoPlay'));
-    if (p.today) ctl.append(div('today', fill(LABELS.pomoToday || '{n} sesi hari ini', { n: p.today })));
-    ctl.append(button('timer:settings', '', 'end', 'IoSettingsOutline'));
+    ctl.append(button('timer:start', label('pomoStart', 'Mulai'), 'primary', 'IoPlay'), tip(button('timer:settings', '', '', 'IoSettingsOutline'), label('pomoSettings', 'Pengaturan pomodoro')));
     g.append(ctl);
+    g.append(pomoStats(p.today || 0, [div('ptags', `${c.focusMin}/${c.shortMin}/${c.longMin} ${label('durM', 'mnt')}`)]));
     it.append(dial, g);
     return it;
   }
@@ -882,46 +914,65 @@
     const [h, mm] = [LABELS.durH || 'j', LABELS.durM || 'mnt'];
     return m >= 60 ? `${Math.floor(m / 60)} ${h} ${m % 60} ${mm}` : `${m} ${mm}`;
   };
+  // Running: on the left the work (its folder, how long, the goal, the AI edits lock as a switch, and
+  // the buttons); on the right the pomodoros done for it and the one running now.
   function focusItem(f, st) {
     const s = f.session;
-    const it = div('item widget focuspage');
-    const lead = iconBox('folder', 'green');
-    if (!s.folder) lead.replaceChildren(window.badiReactIcon?.('IoLocateOutline', 17) || icon('folder', 16));
-    const g = div('grow');
-    const head = div('phead');
-    head.append(div('main', s.name));
-    const live = div('sub live');
-    head.append(live);
+    const it = div('item widget focuspage on');
+    const left = div('grow');
+    const head = div('fhead');
+    const lead = div('lead');
+    lead.append(s.folder ? icon('folder', 16) : window.ainaReactIcon?.('IoLocateOutline', 17) || icon('folder', 16));
+    const name = div('grow');
+    name.append(div('main', s.name), div('fpath', s.folder || s.about || label('focusActive', 'Fokus aktif')));
+    const live = div('live');
     focusRef = { el: live, startedAt: s.startedAt };
-    g.append(head);
-    if (s.about) g.append(div('fabout', s.about));
+    head.append(lead, name, live);
+    left.append(head);
     if (s.goal) {
-      const goal = div('fgoal');
-      goal.append(window.badiReactIcon?.('IoFlagOutline', 12) || '', s.goal);
-      g.append(goal);
-    }
-    // The pomodoro running for this work, and what this focus has had of it so far.
-    const links = [];
-    if (st.timer && phaseOf(st.timer) && st.timer.label === s.name) links.push(`${timerLabel(st.timer)} ${mmss(timerMs(st.timer))}`);
-    if (s.pomodoros) links.push(`${s.pomodoros} pomodoro · ${fmtDur(s.pomodoroMs)}`);
-    if (links.length) g.append(div('ptags', links.join(' · ')));
-    const ctl = div('pctl');
-    if (s.folder) ctl.append(button('focus:open', LABELS.focusOpen || 'Buka folder', 'chip', 'IoFolderOpenOutline'));
-    ctl.append(button('focus:note', LABELS.focusNote || 'Catatan', 'chip', 'IoCreateOutline'));
+      const goal = div('fline');
+      const k = document.createElement('span');
+      k.className = 'k';
+      k.textContent = label('focusGoal', 'Target sesi:');
+      goal.append(k, ` ${s.goal}`);
+      left.append(goal);
+    } else if (s.about && s.folder) left.append(div('fline', s.about));
     if (s.folder) {
-      const lock = button('focus:lock', '', s.lock ? 'lock on' : 'lock', s.lock ? 'IoLockClosed' : 'IoLockOpenOutline');
-      lock.title = s.lock ? LABELS.focusLocked || '' : LABELS.focusUnlocked || '';
-      ctl.append(lock);
+      const row = div('frow');
+      const g = div('grow');
+      g.append(div('main', label('focusLock', 'Kunci edit')), div('sub', s.lock ? label('focusLocked', 'Edit AI hanya di folder ini') : label('focusUnlocked', 'Edit AI tidak dikunci')));
+      const sw = button('focus:lock', '', s.lock ? 'switch on' : 'switch');
+      sw.setAttribute('role', 'switch');
+      sw.setAttribute('aria-checked', String(Boolean(s.lock)));
+      sw.setAttribute('aria-label', label('focusLock', 'Kunci edit'));
+      row.append(g, sw);
+      left.append(row);
     }
-    ctl.append(button('focus:end', LABELS.focusDone || 'Selesai', 'primary end', 'IoCheckmark'));
-    g.append(ctl);
-    it.append(lead, g);
+    const btns = div('fbtns');
+    btns.append(button('focus:end', label('endFocus', 'Selesai fokus'), 'primary', 'IoCheckmark'));
+    if (s.folder) btns.append(button('focus:open', label('focusOpen', 'Buka folder'), '', 'IoFolderOpenOutline'));
+    btns.append(button('focus:note', label('focusNote', 'Catatan'), '', 'IoCreateOutline'));
+    left.append(btns);
+    const side = div('fside');
+    side.append(div('cap', label('focusPomo', 'Pomodoro untuk fokus ini')));
+    const stat = (cls, big, small) => {
+      const b = div(`fstat${cls}`);
+      const n = document.createElement('b');
+      n.textContent = big;
+      const t = document.createElement('span');
+      t.textContent = small;
+      b.append(n, t);
+      return b;
+    };
+    if (st.timer && phaseOf(st.timer) && st.timer.label === s.name) side.append(stat(' timer', timerLabel(st.timer), st.timer.sessions ? fill(label('pomoSession', 'Sesi {n} dari {m}'), { n: st.timer.round, m: st.timer.sessions }) : label('homeTimerRun', 'Berjalan')));
+    side.append(stat('', String(s.pomodoros || 0), `pomodoro · ${fmtDur(s.pomodoroMs || 0)}`));
+    it.append(left, side);
     return it;
   }
   function focusIdle(f) {
     const it = div('item widget focuspage idle');
     const lead = div('lead');
-    lead.append(window.badiReactIcon?.('IoLocateOutline', 17) || icon('folder', 16));
+    lead.append(window.ainaReactIcon?.('IoLocateOutline', 17) || icon('folder', 16));
     const g = div('grow');
     const head = div('phead');
     head.append(div('main', LABELS.focusStart || 'Mulai fokus'), div('sub', LABELS.focusStartHint || ''));
@@ -939,7 +990,7 @@
   }
   function updateFocus() {
     if (!focusRef) return;
-    const text = `● ${LABELS.focusActive || 'Fokus aktif'} · ${fmtDur(Date.now() - focusRef.startedAt)}`;
+    const text = fmtDur(Date.now() - focusRef.startedAt);
     if (focusRef.el.textContent !== text) focusRef.el.textContent = text;
   }
   const rowItem = (lead, main, sub, ...buttons) => {
@@ -949,9 +1000,240 @@
     it.append(lead, g, ...buttons);
     return it;
   };
+  // ---- quick box (Home) ----
+  // Typed in the notch, worked out here with no call anywhere: a sum ("15% dari 2.350.000", "ppn 11%
+  // 1,5jt", "(750rb x 3) : 2"), or a number to spell out in words (terbilang). The overlay never takes
+  // the keyboard on its own; clicking the box asks main for it (island:typing) and gives it back when
+  // the box loses focus. The box is one element for the page's whole life, so the peek's rebuilds
+  // never drop what is being typed.
+  const smart = { q: '', copied: '', copyTimer: 0, want: false };
+  // A number as written in Indonesian: 2.350.000, 1,5, 750rb, 1,5jt, 2 miliar.
+  const SCALE = { rb: 1e3, ribu: 1e3, k: 1e3, jt: 1e6, juta: 1e6, m: 1e9, miliar: 1e9, t: 1e12, triliun: 1e12 };
+  function readNumber(t) {
+    const m = String(t).trim().toLowerCase().match(/^([\d.,]+)\s*(rb|ribu|k|jt|juta|miliar|m|triliun|t)?$/);
+    if (!m) return NaN;
+    let v = m[1];
+    if (v.includes(',')) v = v.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(v)) v = v.replace(/\./g, '');
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n * (SCALE[m[2]] || 1) : NaN;
+  }
+  // + - × / and brackets, numbers as above; anything else is not a sum (no eval: the page's CSP has none).
+  function evalSum(src) {
+    const tokens = [];
+    const re = /\s*(?:([\d.,]+\s*(?:ribu|rb|juta|jt|miliar|triliun|k|m|t)?(?![a-z]))|([-+*/()]))/iy;
+    const text = src.replace(/[x×]/gi, '*').replace(/[:÷]/g, '/');
+    let i = 0;
+    while (i < text.length) {
+      re.lastIndex = i;
+      const m = re.exec(text);
+      if (!m) return null;
+      if (m[1] !== undefined) {
+        const n = readNumber(m[1]);
+        if (Number.isNaN(n)) return null;
+        tokens.push(n);
+      } else tokens.push(m[2]);
+      i = re.lastIndex;
+      if (/^\s*$/.test(text.slice(i))) break;
+    }
+    let k = 0;
+    const peek = () => tokens[k];
+    const factor = () => {
+      const t = tokens[k++];
+      if (t === '-') return -factor();
+      if (t === '+') return factor();
+      if (t === '(') {
+        const v = expr();
+        if (tokens[k++] !== ')') throw 0;
+        return v;
+      }
+      if (typeof t === 'number') return t;
+      throw 0;
+    };
+    const term = () => {
+      let v = factor();
+      while (peek() === '*' || peek() === '/') v = tokens[k++] === '*' ? v * factor() : v / factor();
+      return v;
+    };
+    const expr = () => {
+      let v = term();
+      while (peek() === '+' || peek() === '-') v = tokens[k++] === '+' ? v + term() : v - term();
+      return v;
+    };
+    try {
+      const v = expr();
+      return k === tokens.length && Number.isFinite(v) ? v : null;
+    } catch {
+      return null;
+    }
+  }
+  const rupiah = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
+  // What the box holds: { kind: 'words' | 'sum', value, sub } or null.
+  function readQuery(q) {
+    const t = q.trim().toLowerCase();
+    if (!t) return null;
+    const N = '([\\d.,]+\\s*(?:ribu|rb|juta|jt|miliar|triliun|k|m|t)?)';
+    let m;
+    // "15% dari 2.350.000", "15% x 2,35jt".
+    if ((m = t.match(new RegExp(`^${N}\\s*%\\s*(?:dari|of|x|×|\\*)\\s*${N}$`)))) {
+      const [a, b] = [readNumber(m[1]), readNumber(m[2])];
+      if (!Number.isNaN(a) && !Number.isNaN(b)) return { kind: 'sum', value: (a / 100) * b, sub: `${a}% × ${rupiah(b)}` };
+    }
+    // "ppn 11% 1,5jt": the tax, and the total with it.
+    if ((m = t.match(new RegExp(`^(?:ppn|pajak|tax)\\s*${N}\\s*%\\s*(?:dari\\s*)?${N}$`)))) {
+      const [a, b] = [readNumber(m[1]), readNumber(m[2])];
+      if (!Number.isNaN(a) && !Number.isNaN(b)) return { kind: 'sum', value: (b * a) / 100, sub: fill(label('smartTax', 'PPN {p}% · total {t}'), { p: a, t: rupiah(b + (b * a) / 100) }) };
+    }
+    // A number alone: spelled out.
+    const alone = readNumber(t);
+    if (!Number.isNaN(alone)) return { kind: 'words', value: alone, sub: label('smartWordsOf', 'Terbilang') };
+    const v = evalSum(t);
+    return v === null ? null : { kind: 'sum', value: v, sub: q.trim() };
+  }
+  // Indonesian words for a whole number, to the trillions: "dua juta tiga ratus lima puluh ribu".
+  function terbilang(n) {
+    const one = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+    const say = (x) => {
+      x = Math.floor(x);
+      if (x < 12) return one[x];
+      if (x < 20) return `${say(x - 10)} belas`;
+      if (x < 100) return `${say(x / 10)} puluh${x % 10 ? ` ${say(x % 10)}` : ''}`;
+      if (x < 200) return `seratus${x - 100 ? ` ${say(x - 100)}` : ''}`;
+      if (x < 1000) return `${say(x / 100)} ratus${x % 100 ? ` ${say(x % 100)}` : ''}`;
+      if (x < 2000) return `seribu${x - 1000 ? ` ${say(x - 1000)}` : ''}`;
+      if (x < 1e6) return `${say(x / 1e3)} ribu${x % 1e3 ? ` ${say(x % 1e3)}` : ''}`;
+      if (x < 1e9) return `${say(x / 1e6)} juta${x % 1e6 ? ` ${say(x % 1e6)}` : ''}`;
+      if (x < 1e12) return `${say(x / 1e9)} miliar${x % 1e9 ? ` ${say(x % 1e9)}` : ''}`;
+      return `${say(x / 1e12)} triliun${x % 1e12 ? ` ${say(x % 1e12)}` : ''}`;
+    };
+    const r = Math.round(Math.abs(n));
+    if (r >= 1e15) return '';
+    const words = r === 0 ? 'nol' : say(r);
+    return n < 0 ? `minus ${words}` : words;
+  }
+  // The box: an icon, the field, and what it has understood.
+  const smartBox = div('sbox');
+  const smartIco = div('sico');
+  smartIco.append(icon('spark', 14));
+  const smartInput = document.createElement('input');
+  smartInput.type = 'text';
+  smartInput.spellcheck = false;
+  smartInput.autocomplete = 'off';
+  const smartKind = div('skind');
+  smartBox.append(smartIco, smartInput, smartKind);
+  let homeBody = null; // the tiles, or the box's answer in their place
+  let homeStatus = null;
+  // Clicking the box: the overlay takes the keyboard first, then the field takes focus.
+  smartInput.addEventListener('pointerdown', () => {
+    smart.want = true;
+    aina.send('island:typing', true);
+    setTimeout(() => smart.want && smartInput.focus(), 60);
+  });
+  addEventListener('focus', () => smart.want && smartInput.focus());
+  smartInput.addEventListener('focus', () => {
+    I.typing = true;
+    smartBox.classList.add('on');
+    wake();
+  });
+  smartInput.addEventListener('blur', () => {
+    smart.want = false;
+    I.typing = false;
+    smartBox.classList.remove('on');
+    aina.send('island:typing', false);
+    wake();
+  });
+  smartInput.addEventListener('input', () => {
+    smart.q = smartInput.value;
+    smart.copied = '';
+    updateHomeBody();
+  });
+  smartInput.addEventListener('keydown', (e) => {
+    // Esc clears the box, or, empty, lets go of the keyboard.
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (smart.q) {
+        smartInput.value = smart.q = '';
+        updateHomeBody();
+      } else smartInput.blur();
+    }
+    // Enter copies the answer.
+    if (e.key === 'Enter') copySmart('main');
+  });
+  async function copySmart(which) {
+    const r = readQuery(smart.q);
+    if (!r) return;
+    const text = which === 'words' ? terbilang(r.value) + (r.kind === 'sum' ? ' rupiah' : '') : r.kind === 'sum' ? rupiah(r.value) : Math.round(r.value).toLocaleString('id-ID');
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Without clipboard access (the page not focused): through a hidden field and the copy command.
+      const t = document.createElement('textarea');
+      t.value = text;
+      document.body.append(t);
+      t.select();
+      document.execCommand('copy');
+      t.remove();
+    }
+    smart.copied = which;
+    clearTimeout(smart.copyTimer);
+    smart.copyTimer = setTimeout(() => {
+      smart.copied = '';
+      updateHomeBody();
+    }, 1600);
+    updateHomeBody();
+  }
+  // The answer card: what was worked out, the figure large, its words, and the copy buttons.
+  function smartAnswer() {
+    const r = readQuery(smart.q);
+    const box = div('sans');
+    if (!r) {
+      box.classList.add('none');
+      box.append(div('shint', label('smartUnknown', 'Belum aku kenali. Coba salah satu:')));
+      const ex = div('sex');
+      for (const q of ['15% dari 2.350.000', 'ppn 11% 1,5jt', '(750rb x 3) : 2', '1.250.000']) {
+        const b = localButton(`smart:${q}`, q, 'chip');
+        ex.append(b);
+      }
+      box.append(ex);
+      return box;
+    }
+    const words = terbilang(r.value);
+    const main = r.kind === 'sum' ? rupiah(r.value) : Math.round(r.value).toLocaleString('id-ID');
+    const col = div('scol');
+    col.append(div('ssub', r.sub), div('smain', main));
+    if (words) col.append(div('swords', r.kind === 'sum' ? `${words} rupiah` : words));
+    const act = div('sact');
+    const c1 = localButton('smartcopy:main', smart.copied === 'main' ? label('smartCopied', 'Disalin') : label('smartCopy', 'Salin'), smart.copied === 'main' ? 'chip done' : 'primary');
+    act.append(c1);
+    if (words) act.append(localButton('smartcopy:words', smart.copied === 'words' ? label('smartCopied', 'Disalin') : label('smartCopyWords', 'Salin terbilang'), smart.copied === 'words' ? 'chip done' : 'chip'));
+    box.append(col, act);
+    return box;
+  }
+  // The box's state shown: its badge, and the tiles or the answer under it.
+  function updateHomeBody() {
+    const r = readQuery(smart.q);
+    smartKind.textContent = !smart.q.trim() ? '' : !r ? '—' : r.kind === 'sum' ? label('smartKindSum', 'Hitung') : label('smartKindWords', 'Terbilang');
+    smartKind.className = `skind${r ? ` k-${r.kind}` : ''}`;
+    smartBox.classList.toggle('has', Boolean(smart.q.trim()));
+    if (!homeBody) return;
+    homeBody.replaceChildren(smart.q.trim() ? smartAnswer() : homeTiles(homeStatus || I.status));
+  }
+  // Its own buttons: an example to try, and copying.
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-local^="smart"]');
+    if (!b) return;
+    const [what, ...rest] = b.dataset.local.split(':');
+    if (what === 'smart') {
+      smartInput.value = smart.q = rest.join(':');
+      updateHomeBody();
+      smartInput.focus();
+    }
+    if (what === 'smartcopy') copySmart(rest[0]);
+  });
+
   // ---- home ----
-  // The first page, open by default: one tile per other page (what comes next, background tasks, the
-  // timer or focus, music), each a click away from its page.
+  // The first page, open by default: the quick box, then one tile per other page (what comes next, the
+  // pomodoro, the focus, music), each a click away from its page.
   let homeRendered = 0;
   function nextUp(st, now) {
     const c = I.cal;
@@ -960,32 +1242,73 @@
     if (pray && (!ahead || pray.at < (ahead.snoozedUntil || ahead.start))) return { title: prayerName(pray.key), at: pray.at, prayer: true };
     return ahead ? { title: ahead.title || label('remUntitled', '(tanpa judul)'), at: ahead.snoozedUntil || ahead.start } : null;
   }
-  function homeTile(pageIdTo, ico, cls, title, sub, has) {
+  // Each page's color: the glow under and inside the notch while it is open, and its tile on Home.
+  const PAGE_COLOR = { home: '#2b8aff', timer: '#ff8a3d', later: '#2b8aff', prayer: '#3ddc97', media: '#a78bfa', focus: '#3ddc97', library: '#2b8aff', tasks: '#f5a524', go: '#2b8aff' };
+  // A tile, tinted in its page's color with the page's icon large and faint behind it; a big figure
+  // (a time, a count; none for music), what it is, and one line more. A click opens its page.
+  function homeTile(pageIdTo, ico, cls, big, title, sub, has) {
     const t = div(`htile ${cls}${has ? '' : ' none'}`);
     if (pageIds.includes(pageIdTo)) t.dataset.page = pageIdTo;
+    // (A task that needs the person keeps the warm color its class gives it.)
+    if (PAGE_COLOR[pageIdTo] && !/\burgent\b/.test(cls)) t.style.setProperty('--k', PAGE_COLOR[pageIdTo]);
     const lead = div('hico');
     lead.append(ico);
     const g = div('grow');
+    if (big) g.append(div('big', big));
     g.append(div('main', title), div('sub', sub));
     t.append(lead, g);
     return t;
   }
-  function homePage(st) {
+  // The four tiles.
+  function homeTiles(st) {
     const now = Date.now();
-    const it = div('item widget homepage');
     const grid = div('hgrid');
     const n = nextUp(st, now);
-    grid.append(homeTile('later', n?.prayer ? mosque(15) : icon('bell', 15), 'k-later', n ? n.title : label('homeNoNext', 'Tidak ada agenda'), n ? `${hm(n.at)} · ${rel(n.at, now)}` : label('homeAddHint', 'Tambah pengingat di halaman Pengingat'), Boolean(n)));
-    const live = (st.tasks?.list || []).filter(isLive);
-    grid.append(homeTile('tasks', icon('spark', 15), 'k-tasks', live.length ? fill(label('homeTasks', '{n} tugas berjalan'), { n: live.length }) : label('homeNoTasks', 'Tidak ada tugas'), live[0] ? live[0].task || live[0].name : label('homeTasksHint', 'Tugas latar belakang tampil di sini'), live.length > 0));
+    grid.append(homeTile('later', n?.prayer ? mosque(13) : icon('bell', 13), 'k-later', n ? hm(n.at) : '', n ? n.title : label('homeNoNext', 'Tidak ada agenda'), n ? rel(n.at, now) : label('homeAddHint', 'Tambah pengingat di halaman Pengingat'), Boolean(n)));
+    // Pomodoro: the running one (its countdown and session), or the pomodoro ready to start with its
+    // length; the tile opens the Timer & pomodoro page.
     const t = st.timer;
+    const pomo = st.pomodoro;
+    grid.append(
+      t
+        ? homeTile('timer', icon('timer', 13), 'k-timer', mmss(timerMs(t)), timerLabel(t), t.paused ? label('pomoPaused', 'Dijeda') : t.sessions && phaseOf(t) ? fill(label('pomoSession', 'Sesi {n} dari {m}'), { n: t.round, m: t.sessions }) : label('homeTimerRun', 'Berjalan'), true)
+        : homeTile('timer', icon('timer', 13), 'k-timer', pomo ? mmss(pomo.config.focusMin * 60000) : '', 'Pomodoro', pomo?.today ? fill(label('pomoToday', '{n} sesi hari ini'), { n: pomo.today }) : label('homePomoHint', 'Siap dimulai'), true)
+    );
+    // Focus: the work going on and how long it has run, or how to start one.
     const f = st.focusInfo?.session;
-    grid.append(t ? homeTile('timer', icon('timer', 15), 'k-timer', `${mmss(timerMs(t))} · ${timerLabel(t)}`, t.paused ? label('pomoPaused', 'Dijeda') : f ? f.name : label('homeTimerRun', 'Berjalan'), true) : homeTile('focus', icon('folder', 15), 'k-focus', f ? f.name : label('focusStart', 'Mulai fokus'), f ? label('focusActive', 'Fokus aktif') : label('homeFocusHint', 'Pilih folder atau konteks kerja'), Boolean(f)));
+    grid.append(homeTile('focus', icon('folder', 13), 'k-focus', f ? fmtDur(now - f.startedAt) : '', f ? f.name : label('focusStart', 'Mulai fokus'), f ? label('focusActive', 'Fokus aktif') : label('homeFocusHint', 'Pilih folder atau konteks kerja'), Boolean(f)));
     const m = st.media;
-    grid.append(homeTile('media', icon('music', 15), `k-media${m?.playing ? ' playing' : ''}`, m ? m.title : label('musicNone', 'Tidak ada musik diputar'), m ? [m.artist, m.app].filter(Boolean).join(' · ') : label('homeMusicHint', 'Putar lagu, kontrolnya ada di sini'), Boolean(m)));
-    it.append(grid);
+    grid.append(homeTile('media', icon('music', 13), `k-media${m?.playing ? ' playing' : ''}`, '', m ? m.title : label('musicNone', 'Tidak ada musik diputar'), m ? [m.artist, m.app].filter(Boolean).join(' · ') : label('homeMusicHint', 'Putar lagu, kontrolnya ada di sini'), Boolean(m)));
+    return grid;
+  }
+  // Home: the quick box on top, the tiles (or the box's answer) under it.
+  function homePage(st) {
+    const it = div('item widget homepage');
+    smartInput.placeholder = label('smartPlaceholder', 'Hitung, atau tulis angka untuk terbilang…');
+    homeStatus = st;
+    homeBody = div('hbody');
+    it.append(smartBox, homeBody);
+    updateHomeBody();
     homeRendered = performance.now();
     return { id: 'home', icon: 'home', items: [it] };
+  }
+  // Notes & knowledge: their counts as two tiles, each opening its list (the panel main sends).
+  function libraryPage(st) {
+    const it = div('item widget libpage');
+    const grid = div('hgrid');
+    const tile = (act, ico, cls, n, title, sub) => {
+      const t = homeTile('', ico, cls, String(n), title, sub, n > 0);
+      t.dataset.act = act;
+      t.setAttribute('role', 'button');
+      t.style.cursor = 'pointer';
+      return t;
+    };
+    grid.append(
+      tile('notes', icon('note', 13), 'k-notes', st.notes || 0, label('notes', 'Catatan'), label('libNotesHint', 'Hasil dikte, tersimpan di Dokumen')),
+      tile('knowledge', icon('book', 13), 'k-know', st.knowledge || 0, label('knowledge', 'Pengetahuan'), label('libKnowHint', 'File yang kamu drop ke notch'))
+    );
+    it.append(grid);
+    return { id: 'library', icon: 'book', items: [it] };
   }
   // ---- weather (the left side) ----
   // Small motion icons drawn here (no assets): the sun's rays turn, clouds drift, rain and snow fall,
@@ -1013,10 +1336,15 @@
   }
   function weatherRow(w) {
     if (w && w.temp != null) {
-      const row = button('weather:refresh', '', 'wx');
-      row.append(wxIcon(w.kind, w.day, 20), div('wt', `${w.temp}°`), div('wp', w.place || w.text));
-      row.title = `${w.text}${w.feels != null ? ` · ${fill(label('wxFeels', 'terasa {t}°'), { t: w.feels })}` : ''}${w.min != null ? ` · ${w.min}–${w.max}°` : ''}`;
-      return row;
+      const box = button('weather:refresh', '', 'wx');
+      const top = div('wtop');
+      top.append(wxIcon(w.kind, w.day, 30), div('wt', `${w.temp}°`));
+      box.append(top);
+      if (w.text) box.append(div('wc', w.text));
+      const where = [w.place, w.max != null ? `${w.max}° / ${w.min}°` : ''].filter(Boolean).join(' · ');
+      if (where) box.append(div('wp', where));
+      if (w.feels != null) box.title = fill(label('wxFeels', 'terasa {t}°'), { t: w.feels });
+      return box;
     }
     // No position from the laptop (no GPS/Wi-Fi location, or location off): ask for a city.
     if (w?.error) return button('weather:setup', label('wxSetup', 'Masukkan kota'), 'chip wxset');
@@ -1147,11 +1475,14 @@
   }
   const weekStart = (ms) => addDays(midnight(ms), -((new Date(ms).getDay() + 6) % 7));
   const hasOn = (events, day) => events.some((e) => onDay(e, day) && !e.done);
-  // Two weeks, Monday first, from the chosen day's week: as much of a calendar as fits the notch.
+  // The chosen day's whole month, Monday first: from the week its 1st falls in to the week of its last
+  // day (5 or 6 rows). Days of the months either side are dimmed.
   function monthGrid(events, today) {
     const sel = new Date(calDay());
-    const start = weekStart(calDay());
-    const rows = 2;
+    const first = new Date(sel.getFullYear(), sel.getMonth(), 1).getTime();
+    const last = new Date(sel.getFullYear(), sel.getMonth() + 1, 0).getTime();
+    const start = weekStart(first);
+    const rows = Math.round((weekStart(last) - start) / (7 * DAY)) + 1;
     const grid = div('cgrid');
     for (let i = 0; i < 7; i++) grid.append(div('wh', new Date(addDays(start, i)).toLocaleDateString(LABELS.locale || 'id-ID', { weekday: 'short' }).slice(0, 3)));
     for (let i = 0; i < rows * 7; i++) {
@@ -1201,19 +1532,36 @@
     }
     return line;
   }
-  // The day's eight times, two columns of four; a prayer's mark ticks it off.
-  function prayerTimes(p, now) {
-    const list = div('ptimes');
-    for (const t of p.times) {
-      const r = div(`pt${p.next?.key === t.key && p.next.at === t.at ? ' next' : ''}${t.at < now ? ' past' : ''}`);
-      r.append(div('pn', prayerName(t.key)), div('pa', hm(t.at)));
-      if (t.prayer) r.append(tip(button(`cal:prayer:done:${t.key}`, t.done ? '' : t.at < now ? '' : rel(t.at, now), t.done ? 'tick on' : 'tick', t.done ? 'check' : t.at < now ? 'IoCheckmark' : ''), t.done ? label('remDone', 'Selesai') : label('remDoneBtn', 'Tandai selesai')));
-      else r.append(div('ps', t.at < now ? '' : rel(t.at, now)));
-      list.append(r);
+  // The prayer page: "Dzuhur in 1 h 58 min" beside the city, method and notification, then the day's
+  // eight times, four by two; a prayer's mark (on hover) ticks it off.
+  function prayerPage(p, now) {
+    const it = div('item widget praypage');
+    const head = div('prhead');
+    const nx = div('pnext');
+    if (p.next) {
+      const b = document.createElement('b');
+      b.textContent = prayerName(p.next.key);
+      nx.append(b, ` ${rel(p.next.at, now)}`);
     }
     const notify = p.notify < 0 ? label('remNotifyOff', 'Notifikasi mati') : p.notify === 0 ? label('remNotifyAt', 'Notifikasi tepat waktu') : fill(label('remNotifyBefore', 'Notifikasi {n} menit sebelum'), { n: p.notify });
-    list.title = `${p.city} · ${p.method} · ${notify}`;
-    return list;
+    const meta = div('pmeta', [p.city, p.method, notify].filter(Boolean).join(' · '));
+    meta.title = meta.textContent;
+    head.append(nx, meta);
+    it.append(head);
+    if (!p.times?.length) {
+      it.append(prayerLine(p, now));
+      return { id: 'prayer', icon: 'bell', items: [it] };
+    }
+    const grid = div('pgrid');
+    for (const t of p.times) {
+      const cell = div(`pcell${p.next?.key === t.key && p.next.at === t.at ? ' next' : ''}${t.at < now ? ' past' : ''}`);
+      cell.append(div('pn', prayerName(t.key)), div('pa', hm(t.at)));
+      if (t.prayer && (t.done || t.at < now)) cell.append(tip(button(`cal:prayer:done:${t.key}`, '', t.done ? 'tick on' : 'tick', t.done ? 'check' : 'IoCheckmark'), t.done ? label('remDone', 'Selesai') : label('remDoneBtn', 'Tandai selesai')));
+      grid.append(cell);
+    }
+    it.append(grid);
+    calRendered = performance.now();
+    return { id: 'prayer', icon: 'bell', live: Boolean(p.next && p.next.at - now < 15 * 60000), items: [it] };
   }
   function syncChip(c) {
     const s = c.sync?.state || 'off';
@@ -1234,15 +1582,15 @@
     const dens = c?.prefs?.density || 'compact';
     const it = div(`item widget rempage dens-${dens}`);
     const prayer = c?.prayer?.enabled && c.prayer.city;
-    const prayerOpenNow = prayer && I.prayerOpen && c.prayer.times?.length;
     const head = div('chead2');
-    for (const [v, k, f] of [['agenda', 'remAgenda', 'Agenda'], ['timeline', 'remTimeline', 'Timeline'], ['calendar', 'remCalendar', 'Kalender']]) head.append(localButton(`cal:view:${v}`, label(k, f), view === v ? 'chip on' : 'chip'));
+    const seg = div('seg');
+    for (const [v, k, f] of [['agenda', 'remAgenda', 'Agenda'], ['timeline', 'remTimeline', 'Timeline'], ['calendar', 'remCalendar', 'Kalender']]) seg.append(localButton(`cal:view:${v}`, label(k, f), view === v ? 'chip on' : 'chip'));
+    head.append(seg);
     // The day (Agenda) or the month (Calendar) to move through, in the header so it takes no row.
     const nav = div('cnav');
     const sel = new Date(calDay());
-    if (prayerOpenNow) nav.append(localButton('cal:prayer', `‹ ${label('remPrayerToday', 'Jadwal salat hari ini')}`, 'navday'));
-    else if (view === 'agenda') nav.append(localButton('cal:daynav:-1', '‹', 'nav'), localButton('cal:today', calDay() === today ? label('remToday', 'Hari ini') : sel.toLocaleDateString(LABELS.locale || 'id-ID', { weekday: 'short', day: 'numeric', month: 'short' }), 'navday'), localButton('cal:daynav:1', '›', 'nav'));
-    else if (view === 'calendar') nav.append(localButton('cal:weeknav:-1', '‹', 'nav'), div('navday', sel.toLocaleDateString(LABELS.locale || 'id-ID', { month: 'short', year: 'numeric' })), localButton('cal:weeknav:1', '›', 'nav'));
+    if (view === 'agenda') nav.append(localButton('cal:daynav:-1', '‹', 'nav'), localButton('cal:today', calDay() === today ? label('remToday', 'Hari ini') : sel.toLocaleDateString(LABELS.locale || 'id-ID', { weekday: 'short', day: 'numeric', month: 'short' }), 'navday'), localButton('cal:daynav:1', '›', 'nav'));
+    else if (view === 'calendar') nav.append(localButton('cal:monthnav:-1', '‹', 'nav'), div('navday', sel.toLocaleDateString(LABELS.locale || 'id-ID', { month: 'short', year: 'numeric' })), localButton('cal:monthnav:1', '›', 'nav'));
     head.append(nav);
     const tools = div('ctools');
     tools.append(
@@ -1251,8 +1599,8 @@
     );
     head.append(tools);
     it.append(head);
-    // The next prayer above today's agenda; opened, the day's times take the body's place.
-    if (prayer && view === 'agenda' && calDay() === today && !I.prayerOpen) it.append(prayerLine(c.prayer, now));
+    // The next prayer above today's agenda; a click opens the prayer page.
+    if (prayer && view === 'agenda' && calDay() === today) it.append(prayerLine(c.prayer, now));
     // No city yet: a line that leads to setting one up (so the times are right), or goes away.
     const guide = !prayer && c?.prayer?.guide && view === 'agenda' && calDay() === today;
     if (guide) {
@@ -1272,18 +1620,17 @@
       warn.append(div('', label(...SYNC_WARN[s])), button(reconnect ? 'cal:connect' : 'cal:refresh', reconnect ? label('remReconnect', 'Sambungkan ulang') : label('remRetry', 'Coba lagi'), 'chip'));
       it.append(warn);
     }
-    if (prayerOpenNow) it.append(prayerTimes(c.prayer, now));
-    else if (view === 'timeline') it.append(timeline(events, now, today));
+    if (view === 'timeline') it.append(timeline(events, now, today));
     else if (view === 'calendar') {
       const cal = div('ccal');
       cal.append(monthGrid(events, today), dayList(events, calDay(), now, 3, tools));
       it.append(cal);
-    } else it.append(dayList(events, calDay(), now, (prayer || guide) && calDay() === today ? 2 : 3, tools));
+    } else it.append(dayList(events, calDay(), now, 6, tools));
     calRendered = performance.now();
     // Opening the page asks main to sync when the month's events are stale (at most once a minute).
     if (performance.now() - calOpened > 60000) {
       calOpened = performance.now();
-      badi.send('island:act', 'cal:open');
+      aina.send('island:act', 'cal:open');
     }
     const soon = st.nextReminder && st.nextReminder.at - now < 60 * 60000;
     return { id: 'later', icon: 'bell', live: Boolean(soon), items: [it] };
@@ -1293,7 +1640,7 @@
     I.calDay = midnight(day);
     const d = new Date(I.calDay);
     const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (I.cal && I.cal.month !== month) badi.send('island:act', `cal:month:${month}`);
+    if (I.cal && I.cal.month !== month) aina.send('island:act', `cal:month:${month}`);
   }
   // ---- tasks ----
   // Background work to keep an eye on, not a task manager: at most two tasks, the ones to look at
@@ -1328,23 +1675,21 @@
     b.dataset.local = local;
     return b;
   };
-  function taskLead(status) {
-    const lead = div(`lead tlead s-${status}`);
-    if (status === 'running' || status === 'queued') lead.append(div('spin'));
-    else lead.append(icon({ needs: 'bell', failed: 'close', completed: 'check', cancelled: 'stop' }[status] || 'spark', 15));
-    return lead;
-  }
+  // A Sprite's card: its status dot, name, state and running time on the first line; under it what it
+  // is doing now (or its task, or its error).
   function taskRow(t) {
     const it = div(`item task s-${t.status}`);
+    it.title = t.task || '';
     const g = div('grow');
-    g.append(div('main', t.task || t.name));
     const sub = div('sub tline');
     const time = document.createElement('span');
     time.className = 'ttime';
     taskRefs.push({ el: time, t });
-    const from = [t.name, t.project, t.routine ? label('taskRoutine', 'Rutinitas') : ''].filter(Boolean).join(' · ');
-    sub.append(div('tstat', taskLabel(t.status)), time, ...(from ? [div('tfrom', from)] : []));
+    const from = [t.project, t.routine ? label('taskRoutine', 'Rutinitas') : ''].filter(Boolean).join(' · ');
+    sub.append(div('sdot'), div('tname', t.name), div('tstat', taskLabel(t.status).toLowerCase()), ...(from ? [div('tfrom', from)] : []), time);
     g.append(sub);
+    const doing = isLive(t) && t.line;
+    g.append(div(doing ? 'tdesc' : 'tdesc plain', doing ? t.line : t.task || ''));
     // A real percentage gets a bar; nothing else pretends to know how far along a task is.
     if (typeof t.progress === 'number' && t.progress >= 0 && t.progress <= 1) {
       const bar = div('tbar');
@@ -1357,18 +1702,14 @@
     const asking = I.stopAsk && I.stopAsk.id === t.id && Date.now() < I.stopAsk.until;
     const queued = t.status === 'queued';
     if (asking) {
-      sub.replaceChildren(div('tstat ask', fill(label(queued ? 'taskCancelAsk' : 'taskStopAsk', queued ? 'Batalkan {name}?' : 'Hentikan {name}?'), { name: t.name })));
+      sub.replaceChildren(div('sdot'), div('tstat ask', fill(label(queued ? 'taskCancelAsk' : 'taskStopAsk', queued ? 'Batalkan {name}?' : 'Hentikan {name}?'), { name: t.name })));
       const ctl = div('tctl');
       ctl.append(button(`sprite:stop:${t.id}`, label(queued ? 'taskCancel' : 'taskStop', queued ? 'Batalkan' : 'Hentikan'), 'danger'), localButton('taskKeep', label('taskKeep', 'Lanjut'), 'chip'));
-      it.append(taskLead(t.status), g, ctl);
+      it.append(g, ctl);
       return it;
     }
-    // One line under the title: a failure's error takes the place of where it came from.
-    if (t.status === 'failed' && t.error) {
-      sub.querySelector('.tfrom')?.remove();
-      sub.append(div('tfrom err', t.error));
-    }
-    if (isLive(t) && t.line) it.title = t.line;
+    // Under the name: a failure's error in place of what it was doing.
+    if (t.status === 'failed' && t.error) g.querySelector('.tdesc').replaceWith(div('tdesc err', t.error));
     const ctl = div('tctl');
     if (t.status === 'failed') ctl.append(button(`agent:${t.slug}`, label('taskSeeError', 'Lihat error'), 'chip'));
     if (t.retry) ctl.append(button(`sprite:retry:${t.id}`, '', '', 'IoRefresh'));
@@ -1379,7 +1720,7 @@
       b.title = label(queued ? 'taskCancel' : 'taskStop', queued ? 'Batalkan' : 'Hentikan');
       ctl.append(b);
     }
-    it.append(taskLead(t.status), g, ctl);
+    it.append(g, ctl);
     return it;
   }
   function tasksPage(tasks) {
@@ -1398,9 +1739,11 @@
     head.append(localButton('taskView:active', `${label('taskActive', 'Aktif')} ${list.filter(keep).length}`, view === 'active' ? 'chip on' : 'chip'), localButton('taskView:history', `${label('taskHistory', 'Riwayat')} ${history.filter(keep).length}`, view === 'history' ? 'chip on' : 'chip'));
     if (split) head.append(localButton('taskFocus', onlyFocus ? tasks.focus : label('taskAllProjects', 'Semua'), `chip end${onlyFocus ? ' on focus' : ''}`, 'IoLocateOutline'));
     items.push(head);
-    items.push(...shown.slice(0, 2).map(taskRow));
+    // The page scrolls, so up to four cards; the rest are in the Agents window.
+    const MAX = 4;
+    items.push(...shown.slice(0, MAX).map(taskRow));
     if (!shown.length) items.push(div('tempty', view === 'history' ? label('taskNoHistory', 'Belum ada tugas yang selesai') : label('taskNoneHere', 'Tidak ada tugas di fokus ini')));
-    if (shown.length > 2) head.append(button('agents', fill(label('taskMore', '+{n} lainnya'), { n: shown.length - 2 }), `chip${split ? '' : ' end'}`));
+    if (shown.length > MAX) head.append(button('agents', fill(label('taskMore', '+{n} lainnya'), { n: shown.length - MAX }), `chip${split ? '' : ' end'}`));
     const urgent = list.some((t) => t.status === 'needs' || t.status === 'failed');
     return { id: 'tasks', icon: 'spark', live: list.some(isLive), urgent, items };
   }
@@ -1421,31 +1764,23 @@
       r.el.classList.toggle('long', live && ms > LONG_TASK_MS);
     }
   }
-  // One widget per page, so the peek grows sideways instead of down; the page tabs switch them. Pages
-  // come by relevance: a running timer, music playing, background tasks, focus, reminders, paused
-  // music, then shortcuts. `live` pages (still running) keep a badge on their tab.
+  // One widget per page, so the peek grows sideways instead of down; the page tabs switch them. The
+  // pages keep one order, as in the notch design: Home, Timer & pomodoro, Reminder Center, Prayer
+  // times, Music, Focus, Notes & knowledge, Tasks, then the shortcuts. A page with nothing to show
+  // (no prayer city, no notes, no tasks) is left out. `live` pages (still running) keep a badge on
+  // their tab.
   function peekPages(st, locale) {
     const pages = [];
     countEl = null;
     peekRing = null;
     endsRef = null;
     taskRefs = [];
-    const playing = Boolean(st.media?.playing);
-    // The music page is always there to open from its tab: playing it comes right after a timer,
-    // paused it comes after the reminders, and with nothing playing it comes near the end.
-    const music = { id: 'media', icon: 'music', live: playing, items: [st.media ? mediaItem(st.media) : mediaIdle()] };
     focusRef = null;
     const fi = st.focusInfo;
+    // Timer & pomodoro: the running one, or the pomodoro waiting to be started (v2 sends its settings).
     if (st.timer) pages.push({ id: 'timer', icon: 'timer', live: true, items: [timerItem(st.timer, st)] });
-    // The focus is the work the timer and the tasks are for: right after the timer.
-    if (fi?.session) pages.push({ id: 'focus', icon: 'folder', live: true, items: [focusItem(fi, st)] });
-    if (playing) pages.push(music);
-    // Background tasks: first of all when one needs the person or has failed.
-    const tasks = st.tasks ? tasksPage(st.tasks) : st.agents.length ? agentsPage(st) : null;
-    if (tasks) (tasks.urgent ? pages.unshift(tasks) : pages.push(tasks));
-    // An older main (no focusInfo) still shows the focus folder with its end button.
-    if (!fi && st.focus) pages.push({ id: 'focus', icon: 'folder', items: [rowItem(iconBox('folder', 'green'), st.focus, LABELS.focus || 'Fokus', button('endFocus', LABELS.endFocus || 'Selesai', '', 'check'))] });
-    // The Reminder Center is always there (v2 sends calendar:data); an older main lists its reminders.
+    else if (st.pomodoro) pages.push({ id: 'timer', icon: 'timer', items: [pomodoroIdle(st.pomodoro)] });
+    // The Reminder Center (v2 sends calendar:data); an older main lists its reminders.
     if (I.cal) pages.push(remindersPage(I.cal, st));
     else if (st.reminders.length) {
       const items = st.reminders.slice(0, 2).map((r) => {
@@ -1455,15 +1790,20 @@
       });
       pages.push({ id: 'later', icon: 'bell', items });
     }
-    if (!playing) pages.push(music);
-    if (fi && !fi.session) pages.push({ id: 'focus', icon: 'folder', items: [focusIdle(fi)] });
-    // With no timer, the pomodoro waits here to be started (v2 sends its settings).
-    if (!st.timer && st.pomodoro) pages.push({ id: 'timer', icon: 'timer', items: [pomodoroIdle(st.pomodoro)] });
-    // B.A.D.I. v2: the notes and the knowledge base open as lists in the notch; then the shortcuts.
-    const tiles = [];
-    if (st.notes) tiles.push(button('notes', `${LABELS.notes || 'Catatan'} ${st.notes}`, 'tile', 'note'));
-    if (st.knowledge) tiles.push(button('knowledge', `${LABELS.knowledge || 'Pengetahuan'} ${st.knowledge}`, 'tile', 'book'));
-    tiles.push(...st.shortcuts.map((s) => button(s.id, s.label, 'tile', 'bolt')));
+    // Prayer times (when they are on and have a city).
+    if (I.cal?.prayer?.enabled && I.cal.prayer.city) pages.push(prayerPage(I.cal.prayer, Date.now()));
+    // Music: always there to open from its tab, with a stand-in when nothing plays.
+    pages.push({ id: 'media', icon: 'music', live: Boolean(st.media?.playing), items: [st.media ? mediaItem(st.media) : mediaIdle()] });
+    // Focus: the running one, or how to start one. An older main (no focusInfo) shows the folder.
+    if (fi?.session) pages.push({ id: 'focus', icon: 'folder', live: true, items: [focusItem(fi, st)] });
+    else if (fi) pages.push({ id: 'focus', icon: 'folder', items: [focusIdle(fi)] });
+    else if (st.focus) pages.push({ id: 'focus', icon: 'folder', items: [rowItem(iconBox('folder', 'green'), st.focus, LABELS.focus || 'Fokus', button('endFocus', LABELS.endFocus || 'Selesai', '', 'check'))] });
+    // Notes & knowledge, their page opening their lists.
+    if (st.notes || st.knowledge) pages.push(libraryPage(st));
+    // Background tasks (a task that needs the person shows on Home and keeps a badge on this tab).
+    const tasks = st.tasks ? tasksPage(st.tasks) : st.agents.length ? agentsPage(st) : null;
+    if (tasks) pages.push(tasks);
+    const tiles = st.shortcuts.map((s) => button(s.id, s.label, 'tile', 'bolt'));
     if (tiles.length) {
       const sc = div('shortcuts');
       sc.append(...tiles);
@@ -1484,21 +1824,53 @@
     wake();
   }
   let lastWheel = 0;
-  // The page indicator: dots, a pill on the open page, arrows either side. Built again only when the
-  // set of pages changes; otherwise its classes, icons and the pill's place (--i) change in place,
-  // so the pill's slide runs once and a hovered indicator stays hovered.
+  // The page's header (its title, and arrows to the pages either side) and, under the page, the page
+  // indicator: dots, a pill on the open page. The indicator is built again only when the set of pages
+  // changes; otherwise its classes, icons and the pill's place (--i) change in place, so the pill's
+  // slide runs once and a hovered indicator stays hovered.
   const peekMain = div('pmain-col');
-  const dotsEl = div('dots');
-  let dotsKey = '';
+  const peekSep = div('vsep');
   const pageArrow = (dir) => {
     const b = document.createElement('button');
     b.className = 'parrow';
     b.dataset.pagestep = dir;
-    b.setAttribute('aria-label', dir < 0 ? 'previous page' : 'next page');
+    b.setAttribute('aria-label', dir < 0 ? label('pagePrev', 'Halaman sebelumnya') : label('pageNext', 'Halaman berikutnya'));
     b.textContent = dir < 0 ? '‹' : '›';
     return b;
   };
+  const phdEl = div('phd');
+  const phdTitle = div('ptitle');
+  const phdArrows = div('parrows');
+  phdArrows.append(pageArrow(-1), pageArrow(1));
+  phdEl.append(phdTitle, phdArrows);
+  peekMain.append(phdEl);
+  let pageEl = null;
+  const PAGE_TITLE = {
+    home: ['pageHome', 'Home'],
+    timer: ['pageTimer', 'Timer & pomodoro'],
+    later: ['pageReminders', 'Pusat Pengingat'],
+    prayer: ['pagePrayer', 'Jadwal salat'],
+    media: ['pageMusic', 'Musik'],
+    focus: ['pageFocus', 'Mode Fokus'],
+    library: ['pageLibrary', 'Catatan & Pengetahuan'],
+    tasks: ['pageTasks', 'Tugas'],
+    go: ['pageShortcuts', 'Pintasan'],
+  };
+  const pageTitle = (id) => (PAGE_TITLE[id] ? label(...PAGE_TITLE[id]) : '');
+  function updateHeader(pages) {
+    const t = pageTitle(pageId);
+    if (phdTitle.textContent !== t) phdTitle.textContent = t;
+    const at = pageIds.indexOf(pageId);
+    const [prev, next] = phdArrows.children;
+    prev.disabled = at <= 0;
+    next.disabled = at >= pages.length - 1;
+    phdArrows.style.visibility = pages.length < 2 ? 'hidden' : '';
+  }
+  const dotsEl = div('dots');
+  dotsEl.setAttribute('role', 'tablist');
+  let dotsKey = '';
   function updateDots(pages) {
+    updateHeader(pages);
     if (pages.length < 2) {
       dotsEl.remove();
       dotsKey = '';
@@ -1512,9 +1884,11 @@
       for (const p of pages) {
         const d = div(`pdot k-${p.id}`);
         d.dataset.page = p.id;
+        d.setAttribute('role', 'tab');
+        d.title = pageTitle(p.id);
         track.append(d);
       }
-      dotsEl.replaceChildren(pageArrow(-1), track, pageArrow(1));
+      dotsEl.replaceChildren(track);
     }
     if (dotsEl.parentNode !== peekMain) peekMain.append(dotsEl);
     const at = pageIds.indexOf(pageId);
@@ -1524,16 +1898,15 @@
       const on = p.id === pageId;
       d.classList.toggle('on', on);
       d.classList.toggle('live', Boolean(p.live));
-      // Ionicons from react-icons: outline at rest, filled for the open page.
+      d.setAttribute('aria-selected', String(on));
+      // Ionicons from react-icons: outline at rest, filled for the open page. The prayer page has
+      // the mosque, drawn here.
       const name = PAGE_ICONS[p.id]?.[on ? 1 : 0] || p.icon;
       if (d.dataset.icon !== name) {
         d.dataset.icon = name;
-        d.replaceChildren((PAGE_ICONS[p.id] && window.badiReactIcon?.(name, 13)) || icon(p.icon, 11));
+        d.replaceChildren(p.id === 'prayer' ? mosque(11) : (PAGE_ICONS[p.id] && window.ainaReactIcon?.(name, 13)) || icon(p.icon, 11));
       }
     }
-    const [prev, , next] = dotsEl.children;
-    prev.disabled = at <= 0;
-    next.disabled = at >= pages.length - 1;
   }
   let swipe = 0; // sideways touchpad travel since the last page change
   let swipeIdle = 0;
@@ -1559,7 +1932,7 @@
       if (vbar && m?.volume != null) {
         I.volume = Math.max(0, Math.min(1, (I.volume ?? m.volume) + (e.deltaY < 0 ? 0.05 : -0.05)));
         vbar.firstChild.style.width = `${I.volume * 100}%`;
-        badi.send('island:act', `volume:${Math.round(I.volume * 100)}`);
+        aina.send('island:act', `volume:${Math.round(I.volume * 100)}`);
         clearTimeout(I.volumeReset);
         I.volumeReset = setTimeout(() => (I.volume = null), 2500);
         return;
@@ -1595,12 +1968,14 @@
     const x0 = e.clientX;
     let dx = 0;
     let dragging = false;
-    page.setPointerCapture(e.pointerId);
+    // The page takes the pointer only once it is really dragged: a plain click must still reach what
+    // was clicked (a Home tile opening its page, a reminder row).
     const move = (ev) => {
       dx = ev.clientX - x0;
       if (!dragging && Math.abs(dx) > 6) {
         dragging = true;
         page.classList.add('dragging');
+        page.setPointerCapture(ev.pointerId);
       }
       if (!dragging) return;
       const i = pageIds.indexOf(pageId);
@@ -1610,9 +1985,9 @@
       page.style.opacity = String(1 - Math.min(0.5, Math.abs(dx) / 320));
     };
     const up = () => {
-      page.removeEventListener('pointermove', move);
-      page.removeEventListener('pointerup', up);
-      page.removeEventListener('pointercancel', up);
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', up);
+      removeEventListener('pointercancel', up);
       page.classList.remove('dragging');
       const i = pageIds.indexOf(pageId);
       const to = dx < -50 ? i + 1 : dx > 50 ? i - 1 : i;
@@ -1621,9 +1996,10 @@
       page.style.transform = '';
       page.style.opacity = '';
     };
-    page.addEventListener('pointermove', move);
-    page.addEventListener('pointerup', up);
-    page.addEventListener('pointercancel', up);
+    // On the window, so the press always ends here, wherever the pointer is let go.
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
   });
   // Each page's tab icon from react-icons (reacticons.js): [at rest, open].
   const PAGE_ICONS = {
@@ -1634,17 +2010,47 @@
     later: ['IoNotificationsOutline', 'IoNotifications'],
     go: ['IoFlashOutline', 'IoFlash'],
   };
-  // Laid out sideways: the clock on the left, the current page and its dots on the right.
+  // The clock as hours, a separator that ticks, and minutes; rebuilt only when the minute changes.
+  function setClock(c) {
+    const parts = new Intl.DateTimeFormat(LABELS.locale || 'id-ID', { hour: '2-digit', minute: '2-digit' }).formatToParts(new Date());
+    const key = parts.map((p) => p.value).join('');
+    if (c.dataset.t === key) return;
+    c.dataset.t = key;
+    c.replaceChildren(
+      ...parts.map((p) => {
+        if (p.type !== 'literal' || !/^[:.]$/.test(p.value)) return document.createTextNode(p.value);
+        const s = document.createElement('span');
+        s.className = 'sep';
+        s.textContent = p.value;
+        return s;
+      })
+    );
+  }
+  // Laid out sideways: the clock, the weather and the credits on the left; on the right the page's
+  // title, the page, and its dots. The page is the same size on every page and scrolls when longer.
   function renderPeek() {
     const st = I.status;
+    // While the quick box is typed in, Home isn't rebuilt (that would pull the field out from under
+    // the keyboard); only its tiles follow the news.
+    if (I.typing && pageId === 'home' && peekEl.contains(smartBox)) {
+      homeStatus = st;
+      if (!smart.q.trim()) updateHomeBody();
+      return;
+    }
     const locale = LABELS.locale || 'id-ID';
     const side = div('top');
     clockEl = div('clock');
-    side.append(peekBadi, clockEl, div('date', new Date().toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })));
+    setClock(clockEl);
+    // The clock and date, then aina, then the weather.
+    side.append(clockEl, div('date', new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })), peekMascot);
     const wx = weatherRow(st.weather);
     if (wx) side.append(wx);
-    // Badi Cloud: the credits left.
-    if (st.cloud) side.append(div('chip', `${st.cloud.credits ?? 0} ${LABELS.credits || 'kredit'}`));
+    // aina Cloud: the credits left, at the bottom of the column; signed out, a line asking to sign in.
+    const cr = div(`credits${st.cloud ? '' : ' signedout'}`);
+    cr.append(icon('spark', 13), st.cloud ? fill(label('creditsLeft', '{n} kredit tersisa'), { n: st.cloud.credits ?? 0 }) : label('creditsSignIn', 'Silakan login dulu'));
+    // Signed out: a Login button beside it, opening Settings at the account.
+    if (!st.cloud) cr.append(button('cloud:settings', label('creditsLogin', 'Login'), 'clogin'));
+    side.append(cr);
     const pages = peekPages(st, locale);
     pageIds = pages.map((p) => p.id);
     if (!pageIds.includes(pageId)) pageId = pageIds[0] || '';
@@ -1652,17 +2058,24 @@
     const fit = div('pfit');
     fit.append(...(pages.find((p) => p.id === pageId)?.items || []));
     page.append(fit);
+    // A rebuild of the same page (new data) keeps its scroll; a new page starts at the top.
+    // (Not data-page: that attribute means "go to this page" to the click handler.)
+    const keepScroll = !pageDir && pageEl?.dataset.pid === pageId ? pageEl.scrollTop : 0;
+    page.dataset.pid = pageId;
     if (pageDir) page.classList.add(pageDir > 0 ? 'slide-next' : 'slide-prev');
     pageDir = 0;
     // The column with the page and its indicator stays in the notch: only the page inside it is
     // swapped, and the indicator is updated in place, so its pill slides once and its hover holds.
-    peekMain.firstElementChild ? peekMain.firstElementChild.replaceWith(page) : peekMain.prepend(page);
+    if (pageEl?.parentNode === peekMain) pageEl.replaceWith(page);
+    else phdEl.after(page);
+    pageEl = page;
+    if (keepScroll) page.scrollTop = keepScroll;
     updateDots(pages);
     peekEl.classList.toggle('enter', peekFresh && !reduceMotion);
     peekEl.classList.toggle('empty', !pages.length);
     peekFresh = false;
     if (peekEl.lastElementChild === peekMain && peekEl.firstElementChild !== peekMain) peekEl.firstElementChild.replaceWith(side);
-    else peekEl.replaceChildren(side, peekMain);
+    else peekEl.replaceChildren(side, peekSep, peekMain);
   }
 
   // ---- hover ----
@@ -1681,7 +2094,7 @@
       if (I.fullscreen && I.revealed) inside ? clearTimeout(hideTimer) : unreveal(500);
       wake();
     }
-    badi.send('island:interactive', inside);
+    aina.send('island:interactive', inside);
   }
   // Over a full-screen app the notch is hidden and takes no clicks. Resting the cursor at the very top,
   // near the middle, for half a second calls it up, already open (the peek, not the small pill); once
@@ -1730,7 +2143,7 @@
     const key = rects.map((r) => r.map((v) => Math.round(v / 20))).join();
     if (key === zoneKey) return;
     zoneKey = key;
-    badi.send('cursor:zone', { part: 'island', rects });
+    aina.send('cursor:zone', { part: 'island', rects });
   }
 
   document.addEventListener('mousemove', (e) => {
@@ -1746,7 +2159,7 @@
     setHover(Math.abs(e.clientX - innerWidth / 2) <= w / 2 && e.clientY <= h);
     // The fallback eyes look toward the cursor (steps of 0.1, so the state machine isn't poked every pixel).
     if (eyes) eyes.set('lookX', Math.round(Math.max(-1, Math.min(1, (e.clientX - innerWidth / 2) / 400)) * 10) / 10);
-    // Badi perks up under the cursor (the overlay is click-through, so Rive can't see it itself).
+    // aina perks up under the cursor (the overlay is click-through, so Rive can't see it itself).
     let over = false;
     if (M.draw !== 'off') {
       const r = mascotCanvas.getBoundingClientRect();
@@ -1813,13 +2226,13 @@
     const here = isHere();
     const turn = here && (I.phase !== 'idle' || (hasText && lingering));
     const st = I.status;
-    // A drop zone or an upload owns the notch, except while Badi asks the user something.
+    // A drop zone or an upload owns the notch, except while aina asks the user something.
     const own = I.panel && (I.panel.kind === 'drop' || I.panel.kind === 'upload') && !waiting ? I.panel.kind : null;
     // A song playing is enough for the compact pill; a new one opens the track card for a moment.
     const music = Boolean(st.media?.playing);
     const track = Boolean(st.media) && now < I.trackUntil;
     const next = st.nextReminder && st.nextReminder.at - Date.now() < 60 * 60000 ? st.nextReminder : null;
-    const view = !here ? 'rest' : own || (turn ? 'turn' : I.panel ? 'panel' : I.hover && now - I.peekSince > 120 ? 'peek' : track ? 'track' : st.agents.length || st.timer || st.focus || music || next ? 'mini' : 'rest');
+    const view = !here ? 'rest' : own || (turn ? 'turn' : I.panel ? 'panel' : (I.hover && now - I.peekSince > 120) || I.typing ? 'peek' : track ? 'track' : st.agents.length || st.timer || st.focus || music || next ? 'mini' : 'rest');
     if (view !== I.view) {
       I.view = view;
       // The new mode's content fades and focuses in instead of popping in.
@@ -1854,26 +2267,35 @@
     el.classList.toggle('has-panel', Boolean(I.panel) && (view === 'turn' || view === 'panel' || view === 'drop'));
     el.classList.toggle('drop-over', I.dropOver);
     for (const m of ['rest', 'mini', 'turn', 'panel', 'peek', 'drop', 'upload', 'track']) el.classList.toggle(`mode-${m}`, view === m);
+    if (view !== 'mini') el.classList.remove('mini-music');
     el.classList.toggle('error', Boolean(I.error));
     el.classList.toggle('dictation', I.mode === 'dictation');
     el.classList.toggle('waiting', waiting);
+    // A panel with one line shows it under its title, beside aina; a short one (no note or list, at
+    // most two buttons) is a single row with its buttons on the right, like a notice.
+    const pnl = view === 'panel' ? I.panel : null;
+    const panelSub = Boolean(pnl) && (pnl.lines || []).length === 1;
+    el.classList.toggle('panel-sub', panelSub);
+    el.classList.toggle('panel-compact', Boolean(pnl) && (pnl.lines || []).length <= 1 && !pnl.note && !pnl.list && (pnl.actions || []).length <= 2);
 
-    // Mini, the compact state: a pill that fits its line. The clock, then what is going on (a pulsing
-    // dot for background tasks, the countdown's ring for a timer, a folder for focus), then a small
-    // equalizer while music plays.
-    let miniBadi = false;
+    // Mini, the compact state: aina on the left, then what is going on: a pulsing dot and the Sprite at
+    // work, the countdown's ring and the time, a dot and the reminder coming, an equalizer and the song
+    // (the line being sung), or a folder and the focus with how long it has run.
+    let miniKind = '';
+    let miniMascot = false;
     if (view === 'mini') {
       const t = st.timer;
       // What is going on, most pressing first: background tasks, the timer, a reminder within the hour
       // (pulsing in its last 10 minutes), a song (the line being sung, or its title), the focus.
       const kind = st.agents.length ? 'agents' : t ? 'timer' : next ? 'remind' : music ? 'music' : st.focus ? 'focus' : 'none';
+      miniKind = kind;
       for (const k of ['agents', 'timer', 'remind', 'music', 'focus', 'none']) miniEl.classList.toggle(`kind-${k}`, kind === k);
       const m = st.media;
       const cover = kind === 'music' && I.art.key === m?.key && I.art.src;
       if (cover && miniCover.getAttribute('src') !== I.art.src) miniCover.src = I.art.src;
       miniArt.classList.toggle('cover', Boolean(cover));
-      // Badi: a song without a cover.
-      miniBadi = kind === 'music' && !cover;
+      // aina is on the pill's left, unless a song's cover is.
+      miniMascot = !cover;
       const lines = kind === 'music' ? lyricLines(m) : null;
       const pos = lines ? mediaPos(m) : null;
       const lyric = lines && pos != null ? (lines[lyricAt(lines, pos)]?.[1] || '') : '';
@@ -1881,39 +2303,60 @@
       miniEl.classList.toggle('music', music);
       for (const p of ['work', 'short', 'long']) miniEl.classList.toggle(`phase-${p}`, phaseOf(t) === p);
       miniEl.classList.toggle('paused', Boolean(t?.paused));
-      if (t) miniRing.set(timerDone(t));
-      miniClock.textContent = new Date().toLocaleTimeString(LABELS.locale || 'id-ID', { hour: '2-digit', minute: '2-digit' });
-      miniText.textContent = st.agents.length
-        ? `${st.agents.length} ${LABELS.agents || 'tugas'}${t ? ` · ${mmss(timerMs(t))}` : ''}`
-        : t
-          ? `${mmss(timerMs(t))} · ${timerLabel(t)}`
-          : next
-            ? `${next.title} · ${rel(next.at, Date.now())}`
-            : kind === 'music'
-              ? lyric || [m.title, m.artist].filter(Boolean).join(' · ')
-              : st.focus || '';
+      if (t) miniRing.set(timerLeft(t));
+      const fs = st.focusInfo?.session;
+      const [text, sub] =
+        kind === 'agents' ? [`${st.agents[0].name || 'Sprite'} ${label('miniWorking', 'bekerja')}`, [st.agents.length > 1 ? `+${st.agents.length - 1}` : '', t ? mmss(timerMs(t)) : ''].filter(Boolean).join(' · ')]
+        : kind === 'timer' ? [mmss(timerMs(t)), t.paused ? (t.left === t.ms ? label('pomoReady', 'Siap') : label('pomoPaused', 'Dijeda')) : timerLabel(t)]
+        : kind === 'remind' ? [next.title, rel(next.at, Date.now())]
+        : kind === 'music' ? [lyric || m.title || '', lyric ? '' : m.artist || '']
+        : kind === 'focus' ? [st.focus || '', fs?.startedAt ? fmtDur(Date.now() - fs.startedAt) : '']
+        : ['', ''];
+      if (miniText.textContent !== text) miniText.textContent = text;
+      if (miniSub.textContent !== sub) miniSub.textContent = sub;
       miniEl.classList.toggle('lyric', Boolean(lyric));
+      // A song playing (not paused): the drifting violet shadow under the pill.
+      el.classList.toggle('mini-music', kind === 'music' && music);
     }
 
-    // Badi: where he shows and how he draws. Nowhere over a full-screen app or while the notch rests.
+    // aina: where he shows and how he draws. Nowhere over a full-screen app or while the notch rests.
     const expr = faceState(view, listening, busy, waiting, now);
-    const slot = el.classList.contains('fs-hidden') ? null : view === 'turn' || view === 'panel' ? 'row' : view === 'peek' ? 'peek' : miniBadi ? 'mini' : null;
+    const slot = el.classList.contains('fs-hidden') ? null : view === 'turn' || view === 'panel' ? 'row' : view === 'peek' ? 'peek' : miniMascot ? 'mini' : null;
     placeMascot(slot, slot === 'mini' || (slot === 'row' && expr === 'idle') ? 'burst' : slot ? 'live' : 'off', expr);
 
+    // The mode's color: the shadow under the notch, the glow inside it and the turn's label.
+    const glow = I.error ? '#ff5a64'
+      : waiting || (I.mode === 'dictation' && listening) ? '#ff8a3d'
+      : view === 'peek' ? PAGE_COLOR[pageId] || '#2b8aff'
+      : view === 'mini' ? { timer: '#ff8a3d', music: '#a78bfa', agents: '#f5a524', focus: '#3ddc97', remind: next && next.at - Date.now() < 10 * 60000 ? '#ffb27a' : '#8b7cff' }[miniKind] || '#2b8aff'
+      : view === 'panel' && I.panel?.kind === 'credits' ? '#ffb27a'
+      // The next pomodoro phase waiting to start: focus orange, a break green.
+      : view === 'panel' && I.panel?.kind === 'pomodoro' ? (I.panel.next === 'work' ? '#ff8a3d' : '#3ddc97')
+      : view === 'panel' && (I.panel?.kind === 'uploaded' || I.panel?.kind === 'agentDone' || I.panel?.kind === 'dictation') ? '#3ddc97'
+      : '#2b8aff';
+    if (glow !== I.glow) {
+      I.glow = glow;
+      el.style.setProperty('--glow', glow);
+      el.style.setProperty('--glow-text', glow === '#2b8aff' ? '#5aa9ff' : glow);
+    }
+
     // The content is laid out at the notch's final width; the notch grows around it.
-    const sized = (w) => ({ w, h: 0, r: 22, ear: 12 });
+    const sized = (w, min = 48) => ({ w, h: 0, min, r: 26, ear: 14 });
+    const PANEL_W = { dictation: 600, confirm: 600, credits: 440 };
     const target =
       view === 'rest' ? (I.hover ? SIZES.restHover : SIZES.rest)
-      : view === 'mini' ? { ...SIZES.mini, w: Math.min(420, Math.max(170, miniEl.scrollWidth + 40) + (I.hover ? 12 : 0)), h: SIZES.mini.h + (I.hover ? 2 : 0) }
-      : view === 'track' ? sized(Math.min(440, wideWidth()))
-      : view === 'peek' ? sized(Math.min(pageIds.length ? (pageId === 'later' ? 640 : 560) : 300, wideWidth())) // just the clock when there is nothing else; the reminder page a little wider
-      : view === 'drop' ? sized(360) // DROP_ZONE in main.js
-      : view === 'upload' ? { w: 220, h: 0, r: 18, ear: 10 }
-      : view === 'panel' ? sized(Math.min(460, wideWidth()))
-      : wide ? sized(wideWidth())
-      : { ...SIZES.compact };
-    content.style.width = `${open ? target.w : SIZES.compact.w}px`;
-    if (open && target.h === 0) target.h = Math.max(SIZES.compact.h, content.offsetHeight);
+      // The pill fits its line (measured by the text's full width, not the part shown now): at most
+      // 440 px, except a song's lyric, which is shown whole (up to 90 % of the screen).
+      : view === 'mini' ? { ...SIZES.mini, w: Math.min(miniEl.classList.contains('lyric') ? fitWidth(2000) : 440, Math.max(SIZES.mini.w, miniMain.scrollWidth - miniText.clientWidth + miniText.scrollWidth + 66) + (I.hover ? 12 : 0)), h: SIZES.mini.h + (I.hover ? 2 : 0) }
+      : view === 'track' ? sized(fitWidth(440))
+      : view === 'peek' ? { ...SIZES.peek, w: fitWidth(pageIds.length ? SIZES.peek.w : 260) }
+      : view === 'drop' ? sized(360) // DROP_ZONE in notch.rs
+      : view === 'upload' ? { w: 320, h: 48, r: 24, ear: 12 }
+      : view === 'panel' ? sized(fitWidth(PANEL_W[I.panel?.kind] || 460))
+      : wide ? sized(wideWidth(), SIZES.turn.h)
+      : { ...SIZES.turn, w: wideWidth() };
+    content.style.width = `${open ? target.w : SIZES.turn.w}px`;
+    if (open && target.h === 0) target.h = Math.max(target.min || 48, content.offsetHeight);
     I.target = target;
     reportZone(here);
     let settled = true;
@@ -1930,7 +2373,7 @@
         lastNow = 0;
         // A mini pill ticks once a second with a countdown, else once a minute for its clock.
         // A mini pill ticks once a second with a countdown, every 0.4 s while it follows a song's
-        // lyrics, else once a minute for its clock (Badi keeps his own time, burstStep).
+        // lyrics, else once a minute for its clock (aina keeps his own time, burstStep).
         const following = miniEl.classList.contains('kind-music') && miniEl.classList.contains('lyric');
         if (view === 'mini') setTimeout(wake, st.timer && !st.timer.paused ? 1000 - (Date.now() % 1000) : following ? 400 : 60000 - (Date.now() % 60000));
       }
@@ -1944,35 +2387,38 @@
     }
     if (view === 'peek') {
       updateMedia();
-      if (clockEl) clockEl.textContent = new Date().toLocaleTimeString(LABELS.locale || 'id-ID', { hour: '2-digit', minute: '2-digit' });
+      if (clockEl) setClock(clockEl);
       if (countEl && st.timer) countEl.textContent = mmss(timerMs(st.timer));
-      if (peekRing && st.timer) peekRing.set(timerDone(st.timer));
+      if (peekRing && st.timer) peekRing.set(timerLeft(st.timer));
       updateEnds();
       updateFocus();
       updateTasks();
       // The reminder page's "in 12 minutes" and the prayer bar move on twice a minute.
-      if (pageId === 'later' && now - calRendered > 30000 && !I.dragging) renderPeek();
+      if ((pageId === 'later' || pageId === 'prayer') && now - calRendered > 30000 && !I.dragging) renderPeek();
       if (pageId === 'home' && now - homeRendered > (st.timer && !st.timer.paused ? 1000 : 30000) && !I.dragging) renderPeek();
       return;
     }
     if (view === 'upload') {
       I.bar += (uploadProgress(I.panel.progress) - I.bar) * 0.12;
       barEl.style.width = `${(I.bar * 100).toFixed(2)}%`;
+      const pct = `${Math.round(I.bar * 100)}%`;
+      if (upPct.textContent !== pct) upPct.textContent = pct;
       return;
     }
     if (view === 'drop') return;
 
-    const label = view === 'panel' ? I.panel.title || 'aina' : I.error ? LABELS.error : LABELS[listening && I.mode === 'dictation' ? 'dictation' : I.phase] || 'aina';
-    if (label !== shownLabel) {
-      shownLabel = label;
+    const rowLabel = view === 'panel' ? I.panel.title || 'aina' : I.error ? LABELS.error : LABELS[listening && I.mode === 'dictation' ? 'dictation' : I.phase] || 'aina';
+    if (rowLabel !== shownLabel) {
+      shownLabel = rowLabel;
       labelEl.classList.remove('swap');
       void labelEl.offsetWidth; // restart the fade-in for the new label
       labelEl.classList.add('swap');
     }
     const timer = I.elapsed && !I.error ? ` ${I.elapsed.s} ${LABELS.seconds || 's'}` : '';
-    labelEl.textContent = label + timer;
+    labelEl.textContent = rowLabel + timer;
     const hint = I.elapsed && I.elapsed.hint ? I.elapsed.hint : waiting && I.hint ? I.hint : '';
-    youEl.textContent = I.error ? '' : hint || (I.transcript ? '“' + I.transcript + '”' : '');
+    const sub = view === 'panel' ? (panelSub ? I.panel.lines[0] : '') : I.error ? '' : hint || (I.transcript ? '“' + I.transcript + '”' : '');
+    if (youEl.textContent !== sub) youEl.textContent = sub;
 
     if (I.error) {
       sayEl.textContent = I.error;

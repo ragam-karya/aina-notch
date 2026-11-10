@@ -3,7 +3,7 @@
 Satu acuan visual untuk semua yang dilihat user: Settings, jendela Agents, notch (Dynamic Island), overlay, installer, halaman cloud dan landing. Suara, nama dan nada bicara ada di `../BRANDING.md`; dokumen ini mengatur bentuk, warna, huruf dan gerak.
 
 Sumber kebenaran:
-- **Logo:** `crates/badi-app/icons/brand/` (dibuat ulang oleh `npm run icon`, `scripts/brand-icon.ps1`).
+- **Logo:** `crates/aina-app/icons/brand/` (dibuat ulang oleh `npm run icon`, `scripts/brand-icon.ps1`).
 - **Token UI:** `src/ui/style.css` (`:root`) dan blok `<style>` di `src/ui/overlay.html` (`#island`, `--c-*`) di folder v1, disalin ke `ui-dist/` oleh `npm run sync-ui`.
 
 Nilai di dokumen ini diambil persis dari file-file itu. Warna logo diambil langsung dari piksel `aina-logo.png`.
@@ -242,7 +242,7 @@ Titik 8 px kuning `#f5a524` berdenyut = tugas berjalan. Teks `.ok`/`.err` 12.5 p
 - Mode: rest → mini (pill + titik) → peek (jam, timer, media) → turn / panel / drop / upload.
 - Tombol notch: primer `#2b8aff` (hover `#4a9bff`); tile `rgba(255,255,255,.07)` dengan ikon `#8fb8ff`; ikon 28 px transparan; bahaya merah 18%; play putih bulat 32 px.
 - Pertanyaan izin selalu: **Boleh** (primer) · **Boleh semua** · **Jangan**.
-- Wajah: mascot Rive (`badi-mascot.riv`) di baris turn, pill dan peek. Ekspresi mengikuti status (alert untuk izin, sleeping setelah 10 menit sepi).
+- Wajah: mascot Rive (`aina-mascot.riv`) di baris turn, pill dan peek. Ekspresi mengikuti status (alert untuk izin, sleeping setelah 10 menit sepi).
 
 ### Overlay
 Kursor biru aina (panah dengan glow biru, garis putih tipis), sorotan, bentuk dan tulisan tangan bergaya marker. Ini wajah aina di layar, jangan diganti bentuk geometri kaku.
@@ -250,7 +250,7 @@ Kursor biru aina (panah dengan glow biru, garis putih tipis), sorotan, bentuk da
 ---
 
 ## 7. Ikon
-- Ikon garis 24×24 (`src/ui/icons.js`, `badiIcon(name)`), digambar dengan `currentColor` sehingga mengikuti warna tombol. Beberapa (play, pause) diisi penuh.
+- Ikon garis 24×24 (`src/ui/icons.js`, `ainaIcon(name)`), digambar dengan `currentColor` sehingga mengikuti warna tombol. Beberapa (play, pause) diisi penuh.
 - Tidak memakai emoji atau glyph teks (⏮ ▶ ×) sebagai ikon: tampilannya beda per font dan terlalu berat.
 - Tombol ikon di notch 28 px (bahaya dan play 32 px).
 - Jangan memakai logo produk lain sebagai ikon; nama aplikasi pihak ketiga ditulis sebagai teks.

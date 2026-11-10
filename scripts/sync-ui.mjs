@@ -13,7 +13,7 @@ const out = join(here, '..', 'ui-dist');
 
 const copies = [
   ['src/ui', 'src/ui'],
-  ['assets/badi.riv', 'assets/badi.riv'],
+  ['assets/aina-eyes.riv', 'assets/aina-eyes.riv'],
   ['assets/cloud.json', 'assets/cloud.json'],
   ['assets/file-upload.json', 'assets/file-upload.json'],
   ['assets/fonts', 'assets/fonts'], // Urbanist (src/ui/fonts.css)
@@ -36,13 +36,13 @@ for (const [from, to] of copies) {
   mkdirSync(dirname(dest), { recursive: true });
   cpSync(src, dest, { recursive: true });
 }
-// aina's mascot is built from badi-mascot/ (Rive CLI).
-const mascot = join(here, '..', 'badi-mascot', 'dist', 'BADI_Mascot.riv');
+// aina's mascot is built from aina-mascot/ (Rive CLI).
+const mascot = join(here, '..', 'aina-mascot', 'dist', 'BADI_Mascot.riv');
 if (!existsSync(mascot)) {
-  console.error('sync-ui: missing badi-mascot/dist/BADI_Mascot.riv (build it with `rive .` in badi-mascot)');
+  console.error('sync-ui: missing aina-mascot/dist/BADI_Mascot.riv (build it with `rive .` in aina-mascot)');
   process.exit(1);
 }
-cpSync(mascot, join(out, 'assets', 'badi-mascot.riv'));
+cpSync(mascot, join(out, 'assets', 'aina-mascot.riv'));
 // …and the pages load them from there (the source keeps its node_modules paths).
 for (const name of readdirSync(join(out, 'src', 'ui')).filter((n) => /\.(html|js)$/.test(n))) {
   const file = join(out, 'src', 'ui', name);
@@ -54,7 +54,7 @@ for (const name of readdirSync(join(out, 'src', 'ui')).filter((n) => /\.(html|js
 const i18n = createRequire(import.meta.url)(join(ui, 'src', 'i18n.js'));
 writeFileSync(join(out, 'i18n.json'), JSON.stringify(i18n.STRINGS));
 
-// Tauri needs an index page; Badi itself opens its windows from Rust.
+// Tauri needs an index page; aina itself opens its windows from Rust.
 writeFileSync(join(out, 'index.html'), '<!doctype html><meta charset="utf-8"><title>aina</title>');
 
 console.log(`sync-ui: ${copies.length} entries → ${out}`);

@@ -9,7 +9,7 @@ function el(tag, props = {}, ...children) {
 }
 
 const time = (ms) => new Date(ms).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-const icon = (name, size) => (window.badiIcon ? window.badiIcon(name, size) : null);
+const icon = (name, size) => (window.ainaIcon ? window.ainaIcon(name, size) : null);
 // Line icons in front of the fixed buttons' labels (icons.js).
 for (const [id, name] of [['newBtn', 'plus'], ['folderBtn', 'folder'], ['stopBtn', 'stop'], ['deleteBtn', 'trash'], ['sendBtn', 'send']]) {
   const i = icon(name, 15);
@@ -18,13 +18,13 @@ for (const [id, name] of [['newBtn', 'plus'], ['folderBtn', 'folder'], ['stopBtn
 // How many messages the open chat showed last time, so only new ones animate in.
 let shown = { slug: null, n: 0 };
 
-// Badi in this window (Rive, rive.js): the head in the sidebar thinks while a task runs and smiles
+// aina in this window (Rive, rive.js): the head in the sidebar thinks while a task runs and smiles
 // when the last one finishes; the full body on the empty page waves hello (and when its head is
 // clicked). Both look toward the cursor.
-const head = window.badiRive($('badiHead'), { artboards: ['BADI_Head'] });
-const body = window.badiRive($('badiBody'), { artboards: ['BADI'] });
+const head = window.ainaRive($('ainaHead'), { artboards: ['BADI_Head'] });
+const body = window.ainaRive($('ainaBody'), { artboards: ['BADI'] });
 body.onReady = () => setTimeout(() => body.fire('wave'), 500);
-$('badiBody').addEventListener('click', () => body.fire('wave'));
+$('ainaBody').addEventListener('click', () => body.fire('wave'));
 let wasRunning = false;
 let moodTimer = null;
 function showMood(running) {
@@ -42,14 +42,14 @@ function showMood(running) {
   wasRunning = running;
 }
 window.addEventListener('mousemove', (e) => {
-  for (const [b, c] of [[head, $('badiHead')], [body, $('badiBody')]]) {
+  for (const [b, c] of [[head, $('ainaHead')], [body, $('ainaBody')]]) {
     const r = c.getBoundingClientRect();
     if (!r.width) continue;
     b.set('lookX', Math.round(Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / 300)) * 10) / 10);
   }
 });
 
-// B.A.D.I. v2 lists Sprites (a fixed set, each task a new instance that may run beside others) instead
+// aina v2 lists Sprites (a fixed set, each task a new instance that may run beside others) instead
 // of agents the person makes; the page switches its copy and buttons when the list says so.
 let spriteMode = false;
 function showSpriteMode(on) {
@@ -65,7 +65,7 @@ function showSpriteMode(on) {
 }
 
 async function refreshList() {
-  const items = await badi.invoke('agents:list');
+  const items = await aina.invoke('agents:list');
   showSpriteMode(items.some((c) => c.sprite));
   showMood(items.some((c) => c.running));
   $('list').replaceChildren(
@@ -94,7 +94,7 @@ async function renderDetail() {
   else body.play();
   $('chatView').hidden = !selected;
   if (!selected) return;
-  const c = await badi.invoke('agents:get', selected);
+  const c = await aina.invoke('agents:get', selected);
   if (!c) return;
   $('title').textContent = c.name;
   $('purpose').textContent = c.purpose + (c.workdir ? ` · Folder: ${c.workdir}` : '');
@@ -110,8 +110,8 @@ async function renderDetail() {
         { className: 'routine' },
         icon('repeat', 15),
         el('span', {}, `${r.title || 'Routine'}: setiap ${r.every_minutes} menit${r.paused ? ' (dijeda)' : ''}`),
-        el('button', { textContent: r.paused ? 'Lanjutkan' : 'Jeda', onclick: () => badi.invoke('agents:routine', { slug: c.slug, id: r.id, patch: { paused: !r.paused } }) }),
-        el('button', { className: 'danger', textContent: 'Hapus', onclick: () => badi.invoke('agents:routine', { slug: c.slug, id: r.id, patch: null }) })
+        el('button', { textContent: r.paused ? 'Lanjutkan' : 'Jeda', onclick: () => aina.invoke('agents:routine', { slug: c.slug, id: r.id, patch: { paused: !r.paused } }) }),
+        el('button', { className: 'danger', textContent: 'Hapus', onclick: () => aina.invoke('agents:routine', { slug: c.slug, id: r.id, patch: null }) })
       )
     )
   );
@@ -144,7 +144,7 @@ function message(m) {
     'div',
     { className: 'msg assistant' },
     el('div', { className: 'body', textContent: m.text }),
-    ...(m.artifacts || []).map((a) => el('a', { className: 'artifact', title: a, onclick: () => badi.invoke('open', a) }, icon('file', 14), el('span', { textContent: a }))),
+    ...(m.artifacts || []).map((a) => el('a', { className: 'artifact', title: a, onclick: () => aina.invoke('open', a) }, icon('file', 14), el('span', { textContent: a }))),
     m.changes?.length ? changesBlock(m) : null,
     m.nextActions?.length ? el('div', { className: 'chips' }, ...m.nextActions.map((a) => el('button', { textContent: a, onclick: () => send(a) }))) : null,
     el('div', { className: 'meta', textContent: time(m.at) + (m.stats ? ` · ${costLine(m.stats)}` : '') })
@@ -157,22 +157,22 @@ function changesBlock(m) {
   const del = m.changes.reduce((n, c) => n + c.removed, 0);
   const files = m.changes.map((c) => {
     const row = el('button', { className: 'dv-file', title: c.path, onclick: () => showDiff(m.spriteId, c.i) }, el('span', { className: 'dv-fname', textContent: c.name }));
-    row.append(badiDiff.counts(c.added, c.removed));
+    row.append(ainaDiff.counts(c.added, c.removed));
     return row;
   });
   const head = el('div', { className: 'changes-head' }, el('span', { textContent: 'Perubahan' }));
-  head.append(badiDiff.counts(add, del));
+  head.append(ainaDiff.counts(add, del));
   return el('div', { className: 'changes' }, head, el('div', { className: 'dv-files' }, ...files));
 }
 
 async function showDiff(sprite, i) {
   let d = null;
   try {
-    d = await badi.invoke('sprites:diff', { sprite, i });
+    d = await aina.invoke('sprites:diff', { sprite, i });
   } catch {}
-  const open = (x) => badi.invoke('sprites:edit', { path: x.path, line: badiDiff.firstLine(x) }).catch((e) => alert(e.message));
-  $('diffHead').replaceChildren(d ? badiDiff.head(d, {}, { onOpen: open }) : '');
-  $('diffBody').replaceChildren(badiDiff.body(d, {}));
+  const open = (x) => aina.invoke('sprites:edit', { path: x.path, line: ainaDiff.firstLine(x) }).catch((e) => alert(e.message));
+  $('diffHead').replaceChildren(d ? ainaDiff.head(d, {}, { onOpen: open }) : '');
+  $('diffBody').replaceChildren(ainaDiff.body(d, {}));
   $('diffDialog').showModal();
 }
 $('closeDiff').onclick = () => $('diffDialog').close();
@@ -181,7 +181,7 @@ async function send(text) {
   if (!selected || !text.trim()) return;
   $('input').value = '';
   logText = '';
-  await badi.invoke('agents:send', { slug: selected, text: text.trim() });
+  await aina.invoke('agents:send', { slug: selected, text: text.trim() });
 }
 
 $('composer').onsubmit = (e) => {
@@ -191,11 +191,11 @@ $('composer').onsubmit = (e) => {
 $('input').onkeydown = (e) => {
   if (e.key === 'Enter' && e.ctrlKey) send($('input').value);
 };
-$('folderBtn').onclick = () => badi.invoke('agents:folder', selected);
-$('stopBtn').onclick = () => badi.invoke('agents:stop', selected);
+$('folderBtn').onclick = () => aina.invoke('agents:folder', selected);
+$('stopBtn').onclick = () => aina.invoke('agents:stop', selected);
 $('deleteBtn').onclick = async () => {
   if (!confirm('Hapus aina ini beserta folder kerjanya?')) return;
-  await badi.invoke('agents:remove', selected);
+  await aina.invoke('agents:remove', selected);
   selected = null;
   refreshList();
 };
@@ -207,20 +207,20 @@ $('newBtn').onclick = () => {
 $('cancelNew').onclick = () => $('newDialog').close();
 $('newForm').onsubmit = async (e) => {
   e.preventDefault();
-  const c = await badi.invoke('agents:create', { name: $('newName').value.trim(), purpose: $('newPurpose').value.trim() });
+  const c = await aina.invoke('agents:create', { name: $('newName').value.trim(), purpose: $('newPurpose').value.trim() });
   $('newDialog').close();
   select(c.slug);
 };
 
-badi.on('agents:changed', refreshList);
+aina.on('agents:changed', refreshList);
 // What a task took: "4 langkah · 7 tool · 0 screenshot · 12 dtk · ~$0.031".
 function costLine(s) {
   return `${s.turns} langkah · ${s.tools} tool · ${s.screenshots} screenshot · ${Math.round(s.ms / 1000)} dtk · ~$${(s.usd || 0).toFixed(3)}`;
 }
 
-badi.on('agents:select', select);
-badi.on('agents:error', (msg) => alert(msg));
-badi.on('agents:log', ({ slug, chunk }) => {
+aina.on('agents:select', select);
+aina.on('agents:error', (msg) => alert(msg));
+aina.on('agents:log', ({ slug, chunk }) => {
   if (slug !== selected) return;
   logText = (logText + chunk).slice(-6000);
   $('log').hidden = false;
@@ -233,5 +233,5 @@ const ENGINES = {
   sdk: 'Mesin: Claude Code yang terpasang di PC ini (file, PowerShell, pencarian, web & kontrol aplikasi).',
   codex: 'Mesin: Codex CLI (shell, file & web).',
 };
-badi.invoke('agents:engine').then((e) => ($('engine').textContent = ENGINES[e] || ''));
+aina.invoke('agents:engine').then((e) => ($('engine').textContent = ENGINES[e] || ''));
 refreshList();

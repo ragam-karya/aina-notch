@@ -1,0 +1,11 @@
+[package]
+name = "aina-core"
+description = "aina's core logic that needs no OS: the notch's timers, reminders and calendar events, what a drop means, agent status lines"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true

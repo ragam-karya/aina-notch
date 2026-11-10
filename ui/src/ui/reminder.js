@@ -1,4 +1,4 @@
-// The small Reminder window (B.A.D.I. v2), opened from the notch's reminder page: ?mode=new (with
+// The small Reminder window (aina v2), opened from the notch's reminder page: ?mode=new (with
 // ?day= the day chosen there) or edit (&id= a local reminder or a Google event). Saving a Google event
 // waits for Google's answer. The page's options (view, Google Calendar, prayer times) are in Settings.
 const $ = (id) => document.getElementById(id);
@@ -40,7 +40,7 @@ for (const b of document.querySelectorAll('[data-short]')) {
     for (const o of document.querySelectorAll('[data-short]')) o.classList.toggle('on', o === b);
   };
 }
-// What a destination allows: Google takes no all-day events from Badi, and keeps its own reminders.
+// What a destination allows: Google takes no all-day events from aina, and keeps its own reminders.
 function sync() {
   const google = $('dest').value.startsWith('google:');
   $('timeBox').hidden = $('allDay').checked;
@@ -102,7 +102,7 @@ $('save').onclick = async () => {
   $('save').disabled = true;
   if (google) $('save').textContent = 'Menyimpan ke Google…';
   try {
-    await badi.invoke('reminder:save', {
+    await aina.invoke('reminder:save', {
       id: data.item?.id || '',
       dest: $('dest').value,
       title: $('title').value,
@@ -126,13 +126,13 @@ $('del').onclick = async () => {
     $('del').textContent = 'Yakin hapus?';
     return;
   }
-  await badi.invoke('reminder:delete', { id: data.item.id });
+  await aina.invoke('reminder:delete', { id: data.item.id });
   window.close();
 };
 
 
 (async () => {
-  data = await badi.invoke('reminder:get', { id: q.get('id') || '' });
+  data = await aina.invoke('reminder:get', { id: q.get('id') || '' });
   fillEdit();
   $('title').focus();
 })();

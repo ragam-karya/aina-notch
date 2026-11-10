@@ -1,4 +1,4 @@
-// The small Focus window (B.A.D.I. v2), opened from the notch's Focus page for what needs typing:
+// The small Focus window (aina v2), opened from the notch's Focus page for what needs typing:
 // ?mode=new (a new context), note (the running focus: about, goal, notes, saved as they're typed),
 // end (the optional summary when Selesai) or history (time per project this week, last sessions).
 const $ = (id) => document.getElementById(id);
@@ -31,7 +31,7 @@ function lockRow() {
   $('newLockRow').hidden = !$('newFolder').value;
 }
 $('pick').onclick = async () => {
-  const folder = await badi.invoke('focus:pick');
+  const folder = await aina.invoke('focus:pick');
   if (folder) {
     $('newFolder').value = folder;
     if (!$('newName').value.trim()) $('newName').placeholder = folder.split(/[\\/]/).filter(Boolean).pop();
@@ -40,7 +40,7 @@ $('pick').onclick = async () => {
 };
 $('start').onclick = async () => {
   try {
-    await badi.invoke('focus:start', { name: $('newName').value, folder: $('newFolder').value, about: $('newAbout').value, goal: $('newGoal').value, lock: $('newLock').checked });
+    await aina.invoke('focus:start', { name: $('newName').value, folder: $('newFolder').value, about: $('newAbout').value, goal: $('newGoal').value, lock: $('newLock').checked });
     window.close();
   } catch (e) {
     $('newErr').textContent = String(e.message || e);
@@ -53,7 +53,7 @@ function saveSoon() {
   clearTimeout(saveTimer);
   $('saved').textContent = '';
   saveTimer = setTimeout(async () => {
-    await badi.invoke('focus:update', { about: $('workAbout').value, goal: $('workGoal').value, note: $('noteText').value });
+    await aina.invoke('focus:update', { about: $('workAbout').value, goal: $('workGoal').value, note: $('noteText').value });
     $('saved').textContent = 'Tersimpan';
   }, 500);
 }
@@ -70,7 +70,7 @@ function renderWork() {
 // ---- end ----
 async function finish(withSummary) {
   const summary = withSummary ? { done: $('done').value, pending: $('pending').value, next: $('next').value } : {};
-  await badi.invoke('focus:end', summary);
+  await aina.invoke('focus:end', summary);
   window.close();
 }
 $('endSave').onclick = () => finish(true);
@@ -104,7 +104,7 @@ function renderHistory() {
 }
 
 (async () => {
-  data = await badi.invoke('focus:get');
+  data = await aina.invoke('focus:get');
   lockRow();
   if (data.session) renderWork();
   if (mode === 'end' && data.session) {

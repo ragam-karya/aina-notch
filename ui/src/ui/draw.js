@@ -1,5 +1,5 @@
 // Drawing engine for the overlay: turns SHAPE / DRAW / WRITE visuals into strokes and renders them
-// progressively like a marker, so Badi's cursor can ride the pen tip.
+// progressively like a marker, so aina's cursor can ride the pen tip.
 (function () {
   const BLUE = '#2b8aff';
   const HAND_FONT = '"Ink Free", "Segoe Print", "Segoe Script", "Comic Sans MS", cursive';

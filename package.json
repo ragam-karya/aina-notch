@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "sync-ui": "node scripts/sync-ui.mjs",
-    "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/brand-icon.ps1 && tauri icon crates/badi-app/icons/source.png -o crates/badi-app/icons",
+    "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/brand-icon.ps1 && tauri icon crates/aina-app/icons/source.png -o crates/aina-app/icons",
     "dev": "node scripts/build-wake.mjs && node scripts/sync-ui.mjs && tauri dev",
     "build": "node scripts/build-wake.mjs && node scripts/sync-ui.mjs && tauri build",
     "build:msix": "node scripts/build-wake.mjs && node scripts/sync-ui.mjs && tauri build --no-bundle && node scripts/build-msix.mjs",

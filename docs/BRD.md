@@ -104,7 +104,7 @@ Harga OpenAI, ElevenLabs, dan Composio dari sumber sekunder; cek ulang di halama
 
 | Pemakaian | Biaya modal | Dalam kredit (1 kredit = Rp 170) | Dasar |
 |---|---|---|---|
-| 1× tanya layar (cache hangat) | Rp ±138 | ±1 | **Terukur** (`BADI_DEMO=ask`, Fase 5) |
+| 1× tanya layar (cache hangat) | Rp ±138 | ±1 | **Terukur** (`AINA_DEMO=ask`, Fase 5) |
 | 1× jawaban realtime | Rp ±300 | ±1,8 | [BETA.md](BETA.md) |
 | 1 menit dikte | Rp ±10 | ±0,06 | [BETA.md](BETA.md) |
 | 1× Kerjakan untukku | Rp ±1–5 rb | ±6–30 | Calculator 12×3: $0,085 (**terukur**); tugas file $0,03–0,06 (terukur di v1) |
@@ -208,7 +208,7 @@ Belum termasuk gaji (dengan gaji pemilik Rp 10 juta, titik impas naik ke ±240 p
 
 | Kanal | Status | Catatan |
 |---|---|---|
-| **Web** | Ada | Landing (`aina-landing`) → `/langganan` → login Google → Midtrans → `/terima-kasih` → `/download` (installer di R2) atau `badi://open` |
+| **Web** | Ada | Landing (`aina-landing`) → `/langganan` → login Google → Midtrans → `/terima-kasih` → `/download` (installer di R2) atau `aina://open` |
 | **Microsoft Store** | Paket MSIX dan listing siap ([store/listing.md](../store/listing.md)) | `RagamKarya.Aina`, pengembang Ragam Karya. Store menangani tanda tangan dan update untuk kanal ini. Perlu dicek: aturan Store untuk pembayaran di luar Store |
 | **Beta tertutup** | Bisa dinyalakan lagi (`BETA = "1"`) | Hanya email undangan; diatur lewat API admin |
 
@@ -227,7 +227,7 @@ Belum termasuk gaji (dengan gaji pemilik Rp 10 juta, titik impas naik ke ±240 p
 
 ## 10. Kriteria keberhasilan fase ini (sebelum rilis publik)
 1. Beta tertutup 10–20 orang menjalankan [QA-paritas.md](QA-paritas.md) tanpa ❌ di fitur P0.
-2. Installer dan `badi.exe` bertanda tangan; updater Tauri aktif (endpoint dari Worker yang sama).
+2. Installer dan `aina.exe` bertanda tangan; updater Tauri aktif (endpoint dari Worker yang sama).
 3. Midtrans production dengan simpan kartu aktif.
 4. Pentest aina Cloud oleh pihak lain dan review hukum privasi/ketentuan selesai.
 5. Uji fisik: dua monitor beda DPI, mic sungguhan, routine melewati sleep.
@@ -245,7 +245,7 @@ Belum termasuk gaji (dengan gaji pemilik Rp 10 juta, titik impas naik ke ±240 p
 | aina Cloud down atau diserang | Tinggi | Rendah | Cloudflare, token di-hash, pentest; notch tetap jalan offline |
 | Penyalahgunaan kredit Free (banyak akun) | Sedang | Sedang | Free sekali per PC (hash MachineGuid), hanya 10 kredit |
 | Biaya penyedia AI naik | Sedang | Sedang | Harga per kredit di tabel `plans`, bisa disesuaikan tanpa rilis |
-| Ketergantungan pada Composio | Sedang | Sedang | Abstraksi di `badi-apps`; integrasi langsung untuk Google bisa ditambahkan |
+| Ketergantungan pada Composio | Sedang | Sedang | Abstraksi di `aina-apps`; integrasi langsung untuk Google bisa ditambahkan |
 | Midtrans menunda simpan kartu | Sedang | Sedang | QRIS/VA/e-wallet sekali bayar tetap jalan |
 | Latensi atau gangguan penyedia suara | Sedang | Sedang | Request hedged, fallback ElevenLabs → OpenAI → suara Windows |
 | Nama "aina" bentrok dengan merek lain | Sedang | Belum dicek | Cek DJKI dan Store sebelum marketing besar |

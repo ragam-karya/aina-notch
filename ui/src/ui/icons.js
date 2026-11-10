@@ -1,6 +1,6 @@
-// Line icons for the notch and the Badi windows, in place of emoji and text glyphs (⏮ ▶ × 📝), which
+// Line icons for the notch and the aina windows, in place of emoji and text glyphs (⏮ ▶ × 📝), which
 // render differently per font and look heavier than the text around them. 24×24, stroked with
-// currentColor, so they take the button's color. badiIcon(name) returns a fresh <svg>.
+// currentColor, so they take the button's color. ainaIcon(name) returns a fresh <svg>.
 (function () {
   const NS = 'http://www.w3.org/2000/svg';
   // Each icon: a list of [tag, attributes]. "fill" marks shapes filled instead of stroked.
@@ -54,8 +54,8 @@
     for (const c of node.child || []) n.append(build(c, false));
     return n;
   }
-  window.badiReactIcon = function (name, size = 16) {
-    const tree = window.BADI_REACT_ICONS?.[name];
+  window.ainaReactIcon = function (name, size = 16) {
+    const tree = window.AINA_REACT_ICONS?.[name];
     if (!tree) return null;
     const svg = build(tree, true);
     svg.setAttribute('width', size);
@@ -65,7 +65,7 @@
     return svg;
   };
 
-  window.badiIcon = function (name, size = 16) {
+  window.ainaIcon = function (name, size = 16) {
     const svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.setAttribute('width', size);

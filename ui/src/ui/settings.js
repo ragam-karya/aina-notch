@@ -9,7 +9,7 @@ function keyState(c, k) {
 }
 
 async function load() {
-  const c = await badi.invoke('config:get');
+  const c = await aina.invoke('config:get');
   $('anthropicState').textContent = keyState(c, 'anthropicApiKey');
   $('openaiState').textContent = keyState(c, 'openaiApiKey');
   $('composioState').textContent = keyState(c, 'composioApiKey');
@@ -51,7 +51,7 @@ async function load() {
 }
 
 // ---------- pomodoro ----------
-// The built-in patterns (the same as builtin_presets in badi-core/src/timers.rs) and the person's own,
+// The built-in patterns (the same as builtin_presets in aina-core/src/timers.rs) and the person's own,
 // kept in config.json as pomodoroPresets. Choosing one fills the fields; changing a field makes the
 // settings custom (no preset chosen).
 const POMO_BUILTIN = [
@@ -69,10 +69,10 @@ function fillPomoPresets(selected) {
   $('pomoDelete').hidden = !selected.startsWith('custom:');
 }
 function loadPomodoro(c) {
-  const p = { ...POMO_BUILTIN[0], autoStart: true, notify: true, ...(c.pomodoro || {}) };
+  const p = { ...POMO_BUILTIN[0], autoStart: false, notify: true, ...(c.pomodoro || {}) };
   pomoCustom = Array.isArray(c.pomodoroPresets) ? c.pomodoroPresets : [];
   for (const [k, id] of Object.entries(POMO_FIELDS)) $(id).value = p[k];
-  $('pomoAuto').checked = p.autoStart !== false;
+  $('pomoAuto').checked = p.autoStart === true;
   $('pomoNotify').checked = p.notify !== false;
   fillPomoPresets(c.pomodoroPreset ?? 'classic');
 }
@@ -111,7 +111,7 @@ function fillVoices(selected) {
     ...voices.map((v) => new Option(`${v.name} (${v.lang})`, v.name, false, v.name === selected))
   );
 }
-speechSynthesis.onvoiceschanged = () => badi.invoke('config:get').then((c) => {
+speechSynthesis.onvoiceschanged = () => aina.invoke('config:get').then((c) => {
   fillVoices(c.systemVoice);
   updateVoiceHint();
 });
@@ -167,7 +167,7 @@ async function save() {
     $('saveStatus').className = 'status err';
     return false;
   }
-  await badi.invoke('config:set', {
+  await aina.invoke('config:set', {
     anthropicApiKey: $('anthropicApiKey').value.trim(),
     openaiApiKey: $('openaiApiKey').value.trim(),
     elevenlabsApiKey: $('elevenlabsApiKey').value.trim(),
@@ -216,7 +216,7 @@ $('testAnthropic').onclick = async () => {
   $('testStatus').className = 'status';
   try {
     if ($('anthropicApiKey').value.trim() && !(await save())) return;
-    const reply = await badi.invoke('test:anthropic');
+    const reply = await aina.invoke('test:anthropic');
     $('testStatus').textContent = `Terhubung. Balasan model: "${reply}"`;
     $('testStatus').className = 'status ok';
   } catch (e) {
@@ -237,17 +237,17 @@ function showExtStatus(s) {
 }
 
 async function loadExtension() {
-  const info = await badi.invoke('extension:info');
+  const info = await aina.invoke('extension:info');
   $('extCode').value = info.code;
   showExtStatus(info.status);
 }
-badi.on('extension:status', showExtStatus);
+aina.on('extension:status', showExtStatus);
 $('extNewCode').onclick = async () => {
-  const info = await badi.invoke('extension:newCode');
+  const info = await aina.invoke('extension:newCode');
   $('extCode').value = info.code;
   showExtStatus(info.status);
 };
-$('extFolder').onclick = () => badi.invoke('extension:folder');
+$('extFolder').onclick = () => aina.invoke('extension:folder');
 $('extCopyUrl').onclick = () => {
   navigator.clipboard.writeText('chrome://extensions');
   $('extCopyUrl').textContent = 'Tersalin';
@@ -278,7 +278,7 @@ function askForCity(code) {
 }
 let locError = '';
 async function loadLocation() {
-  const l = await badi.invoke('location:get');
+  const l = await aina.invoke('location:get');
   $('locationMode').value = l.mode || 'auto';
   $('locationShare').checked = l.share !== false;
   locCity = l.city || null;
@@ -298,7 +298,7 @@ $('locationMode').onchange = showLocMode;
 $('locDetect').onclick = async () => {
   $('locAutoState').textContent = 'Mendeteksi…';
   try {
-    const p = await badi.invoke('location:detect');
+    const p = await aina.invoke('location:detect');
     $('locAutoState').textContent = `Terdeteksi: ${placeText(p) || `${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}`}`;
   } catch (e) {
     const code = String(e.message || e);
@@ -313,7 +313,7 @@ $('locSearch').oninput = () => {
   if (text.length < 2) return $('locResults').replaceChildren();
   locTimer = setTimeout(async () => {
     try {
-      const found = await badi.invoke('location:search', { q: text });
+      const found = await aina.invoke('location:search', { q: text });
       $('locResults').replaceChildren(
         ...found.map((p) => {
           const b = document.createElement('button');
@@ -365,7 +365,7 @@ $('prayerSearch').oninput = () => {
   if (text.length < 3) return $('prayerResults').replaceChildren();
   prayerTimer = setTimeout(async () => {
     try {
-      const found = await badi.invoke('reminder:cities', { q: text });
+      const found = await aina.invoke('reminder:cities', { q: text });
       if (!found.length) {
         $('prayerResults').replaceChildren();
         $('prayerChosen').textContent = 'Kota tidak ditemukan. Coba nama kota atau kabupatennya saja.';
@@ -392,7 +392,7 @@ $('prayerSearch').oninput = () => {
 };
 
 // From the installer (--setup-extension): show the steps and mark them for a moment.
-badi.on('settings:focus', (id) => {
+aina.on('settings:focus', (id) => {
   const el = $(id);
   if (!el) return;
   // From the notch's prayer guide: the switch on, the city field ready to type in.
@@ -435,7 +435,7 @@ function loadApps() {
 async function showApps() {
   const box = $('apps');
   if (!box.children.length) $('appsStatus').textContent = 'Memuat aplikasi…';
-  const res = await badi.invoke('apps:list');
+  const res = await aina.invoke('apps:list');
   $('appsStatus').textContent = res.error ? `Composio belum bisa dihubungi: ${res.error}` : res.ready ? '' : cloudOnly ? 'Masuk ke aina Cloud dulu untuk menghubungkan aplikasi.' : 'Isi Composio API key lalu Simpan untuk menghubungkan aplikasi.';
   $('appsStatus').className = res.error ? 'status err' : 'status';
   box.replaceChildren(
@@ -481,7 +481,7 @@ async function showApps() {
               $('composioApiKey').focus();
               return;
             }
-            await badi.invoke('config:set', { composioApiKey: key });
+            await aina.invoke('config:set', { composioApiKey: key });
             loadBrands();
             $('composioApiKey').value = '';
             $('composioState').textContent = '(tersimpan, kosongkan untuk tetap memakai)';
@@ -491,7 +491,7 @@ async function showApps() {
             linking.set(a.slug, 'opening');
             state.textContent = 'Membuka login…';
           }
-          const said = await badi.invoke('apps:toggle', { slug: a.slug, on: input.checked, connected: a.connected });
+          const said = await aina.invoke('apps:toggle', { slug: a.slug, on: input.checked, connected: a.connected });
           if (signIn && said) {
             linking.set(a.slug, 'waiting');
             $('appsStatus').textContent = `Selesaikan login ${a.name} di browser. Saklarnya tetap menyala sambil menunggu; daftar ini diperbarui otomatis.`;
@@ -531,7 +531,7 @@ async function showApps() {
           unlink.disabled = true;
           linking.delete(a.slug);
           try {
-            await badi.invoke('apps:disconnect', a.slug);
+            await aina.invoke('apps:disconnect', a.slug);
           } catch (e) {
             $('appsStatus').textContent = e.message;
             $('appsStatus').className = 'status err';
@@ -552,12 +552,12 @@ addEventListener('focus', () => {
   clearTimeout(graceTimer);
   graceTimer = setTimeout(async () => {
     if (!document.hasFocus()) return;
-    const res = await badi.invoke('apps:list').catch(() => null);
+    const res = await aina.invoke('apps:list').catch(() => null);
     const open = (res?.apps || []).filter((a) => !a.connected && (a.pending || linking.has(a.slug)));
     if (!open.length) return;
     for (const a of open) {
       linking.delete(a.slug);
-      await badi.invoke('apps:toggle', { slug: a.slug, on: false, connected: false }).catch(() => {});
+      await aina.invoke('apps:toggle', { slug: a.slug, on: false, connected: false }).catch(() => {});
     }
     $('appsStatus').textContent = `Login ${open.map((a) => a.name).join(', ')} belum selesai, jadi saklarnya dimatikan. Nyalakan lagi untuk mencoba.`;
     $('appsStatus').className = 'status err';
@@ -566,7 +566,7 @@ addEventListener('focus', () => {
 });
 addEventListener('blur', () => clearTimeout(graceTimer));
 
-badi.on('apps:changed', (e) => {
+aina.on('apps:changed', (e) => {
   // A sign-in ended: linked, or not finished in time (its switch went back off).
   if (e && e.slug) {
     linking.delete(e.slug);
@@ -614,7 +614,7 @@ function showBrands(info) {
         off.onclick = async () => {
           off.disabled = true;
           try {
-            showBrands(await badi.invoke('apps:unbrand', b.id));
+            showBrands(await aina.invoke('apps:unbrand', b.id));
             loadApps();
           } catch (e) {
             $('brandStatus').textContent = e.message;
@@ -632,7 +632,7 @@ function showConsole() {
   $('brandConsole').textContent = b?.console ? `Buat OAuth app di: ${b.console}` : '';
 }
 async function loadBrands() {
-  showBrands(await badi.invoke('apps:brands'));
+  showBrands(await aina.invoke('apps:brands'));
 }
 $('brandWhich').onchange = showConsole;
 $('brandCopy').onclick = () => navigator.clipboard.writeText($('brandRedirect').textContent);
@@ -641,7 +641,7 @@ $('brandSave').onclick = async () => {
   $('brandStatus').textContent = 'Memasang…';
   $('brandStatus').className = 'status';
   try {
-    const info = await badi.invoke('apps:brand', { id: $('brandWhich').value, clientId: $('brandClientId').value, clientSecret: $('brandSecret').value });
+    const info = await aina.invoke('apps:brand', { id: $('brandWhich').value, clientId: $('brandClientId').value, clientSecret: $('brandSecret').value });
     $('brandClientId').value = '';
     $('brandSecret').value = '';
     showBrands(info);
@@ -655,9 +655,9 @@ $('brandSave').onclick = async () => {
   $('brandSave').disabled = brandInfo?.kind !== 'project';
 };
 
-// ---------- Badi Cloud ----------
-// Shown only where the app has an account backend (B.A.D.I. v2); elsewhere the section stays hidden.
-// The price list comes from Badi Cloud (its `plans` table), so prices, credits and badges change there.
+// ---------- aina Cloud ----------
+// Shown only where the app has an account backend (aina v2); elsewhere the section stays hidden.
+// The price list comes from aina Cloud (its `plans` table), so prices, credits and badges change there.
 const rupiah = (n) => `Rp${Number(n).toLocaleString('id-ID')}`;
 const fmtDate = (ms) => new Date(ms).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -699,13 +699,13 @@ function planCard(p, { per, button, disabled, current, onClick }) {
   return card;
 }
 
-// B.A.D.I. v2 keeps no API keys: Badi Cloud holds them, so the key fields and the own-OAuth-app
-// section go away and signing in is what makes Badi work (cloudOnly, declared at the top).
+// aina v2 keeps no API keys: aina Cloud holds them, so the key fields and the own-OAuth-app
+// section go away and signing in is what makes aina work (cloudOnly, declared at the top).
 let cloudSignedIn = null;
 async function loadCloud() {
   let s;
   try {
-    s = await badi.invoke('cloud:status');
+    s = await aina.invoke('cloud:status');
   } catch {
     return; // no cloud in this build
   }
@@ -761,7 +761,7 @@ async function loadCloud() {
   ent.textContent = '';
   if (list.enterprise) {
     const contact = list.enterprise.contact;
-    ent.append(planCard(list.enterprise, { per: '', button: 'Hubungi Sales', disabled: !contact, onClick: () => badi.invoke('open', contact).catch((e) => cloudStatus(e.message, true)) }));
+    ent.append(planCard(list.enterprise, { per: '', button: 'Hubungi Sales', disabled: !contact, onClick: () => aina.invoke('open', contact).catch((e) => cloudStatus(e.message, true)) }));
     if (!contact) ent.querySelector('.limits').textContent = 'Untuk tim dan perusahaan: hubungi tim aina.';
   }
 }
@@ -790,7 +790,7 @@ function showRenewal(a, r) {
     if (r.auto && !confirm(`Batalkan perpanjangan otomatis? Paket ${a.planName} tetap aktif sampai ${fmtDate(a.until)}.`)) return;
     btn.disabled = true;
     try {
-      await badi.invoke(r.auto ? 'cloud:cancelRenewal' : 'cloud:resumeRenewal');
+      await aina.invoke(r.auto ? 'cloud:cancelRenewal' : 'cloud:resumeRenewal');
       cloudStatus(r.auto ? `Perpanjangan dibatalkan. Paket tetap aktif sampai ${fmtDate(a.until)}.` : 'Perpanjangan otomatis aktif lagi.');
     } catch (e) {
       cloudStatus(e.message, true);
@@ -801,7 +801,7 @@ function showRenewal(a, r) {
   $('cloudCardDrop').onclick = async () => {
     if (!confirm('Hapus kartu yang tersimpan? Perpanjangan otomatis ikut berhenti; paket tetap aktif sampai akhir siklus.')) return;
     try {
-      await badi.invoke('cloud:dropCard');
+      await aina.invoke('cloud:dropCard');
       cloudStatus('Kartu dihapus dari aina.');
     } catch (e) {
       cloudStatus(e.message, true);
@@ -813,7 +813,7 @@ function showRenewal(a, r) {
 async function checkout(item) {
   cloudStatus('Membuka halaman pembayaran…');
   try {
-    await badi.invoke('cloud:checkout', item);
+    await aina.invoke('cloud:checkout', item);
     cloudStatus('Selesaikan pembayaran di browser. Kreditnya masuk otomatis setelah lunas.');
   } catch (e) {
     cloudStatus(e.message, true);
@@ -823,33 +823,33 @@ async function checkout(item) {
 $('cloudLogin').onclick = async () => {
   cloudStatus('Membuka login Google di browser…');
   try {
-    await badi.invoke('cloud:login');
+    await aina.invoke('cloud:login');
     cloudStatus('Selesaikan login di browser. aina terbuka lagi dan langsung masuk.');
   } catch (e) {
     cloudStatus(e.message, true);
   }
 };
 $('cloudLogout').onclick = async () => {
-  await badi.invoke('cloud:logout');
+  await aina.invoke('cloud:logout');
   cloudStatus(cloudOnly ? 'Sudah keluar. Masuk lagi untuk memakai aina.' : 'Sudah keluar. aina kembali memakai API key milikmu.');
   await loadCloud();
 };
 $('cloudDelete').onclick = async () => {
   if (!confirm('Hapus akun aina Cloud beserta datanya? Langganan yang tersisa ikut hilang.')) return;
   try {
-    await badi.invoke('cloud:deleteAccount');
+    await aina.invoke('cloud:deleteAccount');
     cloudStatus('Akunmu sudah dihapus.');
     await loadCloud();
   } catch (e) {
     cloudStatus(e.message, true);
   }
 };
-for (const a of document.querySelectorAll('[data-open]')) a.onclick = (e) => (e.preventDefault(), badi.invoke('cloud:open', a.dataset.open));
-badi.on('cloud:changed', loadCloud);
+for (const a of document.querySelectorAll('[data-open]')) a.onclick = (e) => (e.preventDefault(), aina.invoke('cloud:open', a.dataset.open));
+aina.on('cloud:changed', loadCloud);
 loadCloud();
 
-// B.A.D.I. v2 keeps dictations as notes (Markdown files) and shows them in the notch, instead of typing them.
-badi
+// aina v2 keeps dictations as notes (Markdown files) and shows them in the notch, instead of typing them.
+aina
   .invoke('dictation:info')
   .then((d) => {
     if (d?.folder) $('dictWhat').textContent = `untuk mendikte catatan (atau tekan sekali untuk mulai, tekan lagi untuk selesai, jadi tanganmu bebas). aina merapikan dan meringkasnya, menampilkannya di notch, lalu menyimpannya di ${d.folder}`;
