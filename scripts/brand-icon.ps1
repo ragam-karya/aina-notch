@@ -1,4 +1,4 @@
-# aina's brand images, from the logo files in crates/badi-app/icons/brand (drawn on a plain background):
+# aina's brand images, from the logo files in crates/aina-app/icons/brand (drawn on a plain background):
 #   icons/source.png          the mark alone, background keyed out, centered on a transparent 1024 px
 #                             square; `npm run icon` runs this, then `tauri icon` makes every size Tauri
 #                             and the MSIX need from it
@@ -9,9 +9,9 @@
 #   installer/sidebar.bmp, header.bmp  the NSIS installer's images
 param([double]$Margin = 0.08)
 $ErrorActionPreference = 'Stop'
-$icons = Join-Path $PSScriptRoot '..\crates\badi-app\icons'
+$icons = Join-Path $PSScriptRoot '..\crates\aina-app\icons'
 $brand = Join-Path $icons 'brand'
-$installer = Join-Path $PSScriptRoot '..\crates\badi-app\installer'
+$installer = Join-Path $PSScriptRoot '..\crates\aina-app\installer'
 
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
 using System;

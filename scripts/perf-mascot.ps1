@@ -1,5 +1,5 @@
-# The notch's performance scenarios (BADI_DEMO=mascot in demo.rs) on the release build, with a fresh
-# profile and voice off. While they run, every ~5 s: CPU and memory of badi.exe and each WebView2
+# The notch's performance scenarios (AINA_DEMO=mascot in demo.rs) on the release build, with a fresh
+# profile and voice off. While they run, every ~5 s: CPU and memory of aina.exe and each WebView2
 # process by type (browser, renderer, gpu-process, utility), and the 3D engine use and dedicated GPU
 # memory of those processes. Then perf-summary.mjs joins it with the page's own numbers.
 #   .\scripts\perf-mascot.ps1 -Label A                       # every scenario (~50 min)
@@ -9,17 +9,17 @@ param([string]$Label = 'run', [double]$Scale = 1, [string[]]$Scenarios = @('all'
 
 $root = Split-Path $PSScriptRoot -Parent
 $out = Join-Path $root "perf\$Label"
-$profileDir = Join-Path $env:TEMP "badi-perf-profile-$Label"
+$profileDir = Join-Path $env:TEMP "aina-perf-profile-$Label"
 Remove-Item -Recurse -Force $out, $profileDir -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $out, $profileDir | Out-Null
 [IO.File]::WriteAllText("$profileDir\config.json", '{ "tts": "off", "wakeWord": false, "launchAtLogin": false }')
 
-$env:BADI_PROFILE = $profileDir
-$env:BADI_DEMO = 'mascot'
-$env:BADI_DEMO_OUT = $out
-$env:BADI_DEMO_MASCOT = $Scenarios -join ','
-$env:BADI_PERF_SCALE = "$Scale"
-$exe = Join-Path $root 'target\release\badi.exe'
+$env:AINA_PROFILE = $profileDir
+$env:AINA_DEMO = 'mascot'
+$env:AINA_DEMO_OUT = $out
+$env:AINA_DEMO_MASCOT = $Scenarios -join ','
+$env:AINA_PERF_SCALE = "$Scale"
+$exe = Join-Path $root 'target\release\aina.exe'
 $app = Start-Process -FilePath $exe -WorkingDirectory $root -PassThru -RedirectStandardOutput "$out\stdout.log" -RedirectStandardError "$out\stderr.log"
 $cores = [Environment]::ProcessorCount
 
@@ -78,5 +78,5 @@ while (-not $app.HasExited) {
   }
   Start-Sleep -Seconds $Every
 }
-Write-Host "badi.exe exited ($($app.ExitCode)); summarizing $out"
+Write-Host "aina.exe exited ($($app.ExitCode)); summarizing $out"
 node (Join-Path $PSScriptRoot 'perf-summary.mjs') $out

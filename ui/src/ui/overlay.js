@@ -11,7 +11,7 @@ const S = {
   phase: 'idle',
   mode: 'companion',
   mouse: null,
-  badi: null, // where aina's cursor is, {x,y} global
+  aina: null, // where aina's cursor is, {x,y} global
   flight: null, // {from,to,start,dur}
   parked: false,
   level: 0,
@@ -41,20 +41,20 @@ const TRAIL = 14; // aina's cursor rides this far below-right of the mouse
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 function flyTo(target) {
-  const from = S.badi || (S.mouse ? { x: S.mouse.x + TRAIL, y: S.mouse.y + TRAIL } : target);
+  const from = S.aina || (S.mouse ? { x: S.mouse.x + TRAIL, y: S.mouse.y + TRAIL } : target);
   const dist = Math.hypot(target.x - from.x, target.y - from.y);
   S.flight = { from, to: target, start: performance.now(), dur: Math.min(900, 300 + dist * 0.5) };
   S.parked = true;
 }
 
-// The frame loop sleeps while nothing is on screen (Badi idles in the background for hours);
+// The frame loop sleeps while nothing is on screen (aina idles in the background for hours);
 // every event from main wakes it.
 let raf = 0;
 function wake() {
   if (!raf) raf = requestAnimationFrame(frame);
 }
 const on = (channel, fn) =>
-  badi.on(channel, (payload) => {
+  aina.on(channel, (payload) => {
     fn(payload);
     wake();
   });
@@ -62,9 +62,9 @@ const on = (channel, fn) =>
 // ---- events from main ----
 on('phase', (p) => {
   S.phase = p;
-  // The scan lasts while Badi looks and thinks; the answer (or a new question) ends it.
+  // The scan lasts while aina looks and thinks; the answer (or a new question) ends it.
   if (p !== 'looking' && p !== 'thinking' && p !== 'transcribing') S.scan = null;
-  // The user's mark has done its job once Badi answers or acts: it shouldn't keep covering the screen.
+  // The user's mark has done its job once aina answers or acts: it shouldn't keep covering the screen.
   if (p === 'speaking' || p === 'guiding' || p === 'acting') {
     S.ink = [];
     S.gestures = [];
@@ -85,11 +85,11 @@ on('phase', (p) => {
     S.alpha = 1;
   } else hideIfEmpty();
 });
-// Back to idle with nothing left to show or fade (Esc, a cancelled turn): Badi's cursor goes away
+// Back to idle with nothing left to show or fade (Esc, a cancelled turn): aina's cursor goes away
 // instead of standing still where the mouse last was.
 function hideIfEmpty() {
   if (S.phase !== 'idle' || S.fadeAt || S.visuals.length || S.text || S.error) return;
-  S.badi = null;
+  S.aina = null;
   S.alpha = 0;
   S.parked = false;
   S.flight = null;
@@ -97,7 +97,7 @@ function hideIfEmpty() {
 on('mode', (m) => (S.mode = m));
 on('mouse', (p) => {
   S.mouse = p;
-  if (!S.badi) S.badi = { x: p.x + TRAIL, y: p.y + TRAIL };
+  if (!S.aina) S.aina = { x: p.x + TRAIL, y: p.y + TRAIL };
 });
 on('level', (l) => (S.level = S.level * 0.5 + l * 0.5));
 on('transcript', (t) => {
@@ -160,7 +160,7 @@ on('linger', (ms) => (S.fadeAt = performance.now() + ms));
 // Main streams the cursor trail while the user talks: it is drawn as ink that follows the cursor at
 // once. When main recognizes a gesture, the ink becomes a clean shape: a springy ellipse for a circle,
 // a line for an underline, a dot for pointing (after a ring fills while the cursor holds still).
-// Orange is the user's color. While Badi then looks and thinks, its cursor flies there and scans it.
+// Orange is the user's color. While aina then looks and thinks, its cursor flies there and scans it.
 const ORANGE = '#ff8a3d';
 const INK_KEEP = 160; // trail points drawn
 S.ink = [];
@@ -273,7 +273,7 @@ function drawDwell(now) {
   g.restore();
 }
 
-// Badi looking at the marked area: a soft outline with a band of light sweeping down it.
+// aina looking at the marked area: a soft outline with a band of light sweeping down it.
 function drawScan(now) {
   const s = S.scan;
   if (!s) return;
@@ -300,7 +300,7 @@ function drawScan(now) {
   g.restore();
 }
 
-// While Badi operates the PC, its cursor flies to each spot it acts on and leaves a ripple.
+// While aina operates the PC, its cursor flies to each spot it acts on and leaves a ripple.
 const ripples = [];
 on('actionAt', (a) => {
   S.alpha = 1;
@@ -331,7 +331,7 @@ function drawRipples(now) {
 }
 
 // ---- drawing ----
-// Badi's pointer is drawn smaller than the real one (about 9×13 px), so the two are never confused.
+// aina's pointer is drawn smaller than the real one (about 9×13 px), so the two are never confused.
 const POINTER_SCALE = 0.55;
 function drawPointer(p, a) {
   g.save();
@@ -372,7 +372,7 @@ function label(text, x, y) {
   g.restore();
 }
 
-// Badi's pointing pulse shows where to look while that line is said, then fades instead of staying
+// aina's pointing pulse shows where to look while that line is said, then fades instead of staying
 // over the screen until the whole reply has lingered out.
 const POINT_KEEP = 3500;
 const POINT_FADE = 600;
@@ -452,7 +452,7 @@ function frame(now) {
       S.error = '';
       S.transcript = '';
       S.parked = false;
-      S.badi = null;
+      S.aina = null;
       S.ink = [];
       S.gestures = [];
       S.dwell = null;
@@ -480,32 +480,32 @@ function frame(now) {
   for (const [id, end] of S.stepEnds) {
     if (now >= end) {
       S.stepEnds.delete(id);
-      badi.send('overlay:stepDone', id);
+      aina.send('overlay:stepDone', id);
     }
   }
 
-  // Badi position: pen tip > flight > parked > trailing the mouse.
+  // aina position: pen tip > flight > parked > trailing the mouse.
   if (S.pendingAnchor && now > S.drawEnd) {
     flyTo(S.pendingAnchor);
     S.pendingAnchor = null;
   }
   if (S.penTip && !S.flight) {
-    S.badi = S.penTip;
+    S.aina = S.penTip;
     S.parked = true;
   } else if (S.flight) {
     const f = S.flight;
     const t = Math.min(1, (now - f.start) / f.dur);
     const e = ease(t);
     const lift = Math.sin(Math.PI * e) * Math.min(120, Math.hypot(f.to.x - f.from.x, f.to.y - f.from.y) * 0.25);
-    S.badi = { x: f.from.x + (f.to.x - f.from.x) * e, y: f.from.y + (f.to.y - f.from.y) * e - lift };
+    S.aina = { x: f.from.x + (f.to.x - f.from.x) * e, y: f.from.y + (f.to.y - f.from.y) * e - lift };
     if (t >= 1) S.flight = null;
   } else if (!S.parked && S.mouse) {
     const want = { x: S.mouse.x + TRAIL, y: S.mouse.y + TRAIL };
-    S.badi = S.badi ? { x: S.badi.x + (want.x - S.badi.x) * 0.35, y: S.badi.y + (want.y - S.badi.y) * 0.35 } : want;
+    S.aina = S.aina ? { x: S.aina.x + (want.x - S.aina.x) * 0.35, y: S.aina.y + (want.y - S.aina.y) * 0.35 } : want;
   }
 
-  if (S.badi) {
-    const p = local(S.badi);
+  if (S.aina) {
+    const p = local(S.aina);
     const parkedOnPoint = S.parked && !S.flight;
     const pointVisual = S.visuals.find((v) => !isDrawing(v) && v.type !== 'highlight');
     drawPointer(p, S.alpha || 1);

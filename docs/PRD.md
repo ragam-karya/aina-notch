@@ -10,7 +10,7 @@
 | **Tanggal** | 3 November 2026 |
 | **Terkait** | [BRD.md](BRD.md), [../../BRANDING.md](../../BRANDING.md), [BETA.md](BETA.md), [QA-paritas.md](QA-paritas.md), [hardening.md](hardening.md), [../cloud/README.md](../cloud/README.md), [../store/listing.md](../store/listing.md) |
 
-> Dokumen ini menggantikan `../../docs/PRD.md` (v1 Electron, 17 Okt 2026) untuk versi Tauri. v1 tidak dikembangkan lagi. Nama teknis lama (`badi-*`, `window.badi`, `BADI_*`, `badi://`, `%APPDATA%\BADI`) tetap dipakai di kode; teks yang dilihat pengguna memakai **aina**, huruf kecil semua.
+> Dokumen ini menggantikan `../../docs/PRD.md` (v1 Electron, 17 Okt 2026) untuk versi Tauri. v1 tidak dikembangkan lagi. Semua nama teknis memakai aina: crate `aina-*`, `window.aina`, `AINA_*`, data di `%APPDATA%ina`, service Credential Manager `aina`, program `aina.exe`, identifier `id.ai.aina.desktop`, link `aina://`, header `x-aina-*`. Teks yang dilihat pengguna memakai **aina**, huruf kecil semua.
 
 ---
 
@@ -43,9 +43,9 @@ Prinsip produk ([BRANDING.md](../../BRANDING.md)):
 | Nama | B.A.D.I. / Badi | aina (huruf kecil) |
 | Key AI | BYOK, dienkripsi `safeStorage` | **Tidak ada key di PC.** Semua lewat aina Cloud dengan token akun di Windows Credential Manager |
 | Monetisasi | Belum ada | Kredit: Free, Basic, Pro, Top-Up, Enterprise (Midtrans) |
-| Agent latar belakang | "Badi latar belakang", agent bebas | **Sprite**: 6 jenis spesialis, maks. 8 bekerja bersamaan |
+| Agent latar belakang | "aina latar belakang", agent bebas | **Sprite**: 6 jenis spesialis, maks. 8 bekerja bersamaan |
 | Notch | Status, izin, drop, timer | + Home, cuaca, jadwal salat, Pusat Pengingat + Google Calendar, musik interaktif + lirik, Fokus dengan riwayat, catatan, pengetahuan, maskot Rive, sembunyi di layar penuh |
-| Ukuran dan sumber daya | Installer ±116 MB, RAM 553 MB, CPU diam 0,33% | `badi.exe` 9,2 MB, RAM 400 MB, CPU diam 0,04% |
+| Ukuran dan sumber daya | Installer ±116 MB, RAM 553 MB, CPU diam 0,33% | `aina.exe` 9,2 MB, RAM 400 MB, CPU diam 0,04% |
 | Distribusi | Installer NSIS | Installer NSIS (unduh dari web) + Microsoft Store (MSIX, `RagamKarya.Aina`) |
 
 ## 2. Masalah
@@ -77,7 +77,7 @@ Prinsip produk ([BRANDING.md](../../BRANDING.md)):
 | Persona | Kebutuhan | Fitur utama |
 |---|---|---|
 | **Pekerja kantor** (admin, marketing, ops) | Cepat menemukan menu, membereskan email, kalender, dokumen | Tanya layar, Guided, Aplikasi kerja, Pengingat, Dikte |
-| **Developer** | Review diff, cari bug/celah keamanan, perbaikan cepat di satu proyek | Mode Fokus, Sprite Ciro, laporan `badi-reports` |
+| **Developer** | Review diff, cari bug/celah keamanan, perbaikan cepat di satu proyek | Mode Fokus, Sprite Ciro, laporan `aina-reports` |
 | **Pengguna awam** | Dipandu langkah demi langkah tanpa jargon | Guided, suara, Ngobrol (realtime) |
 | **Power user** | Mendelegasikan tugas panjang dan berulang | Kerjakan untukku, Sprite, routine, file tools |
 | **Pengguna notch saja** | Jam, timer, pomodoro, pengingat, salat, musik tanpa membayar | Notch pintar (gratis, tanpa akun) |
@@ -88,12 +88,12 @@ Prioritas: **P0** wajib di rilis, **P1** penting, **P2** bagus kalau ada. Status
 
 | ID | Fitur | Prioritas | Akses | Status |
 |---|---|---|---|---|
-| F1 | Tanya layar (tahan untuk bicara) | P0 | Kredit | Ada, teruji (`BADI_DEMO=ask`) |
-| F2 | Menandai sambil bicara (lingkari, garis bawahi, tunjuk) | P1 | Kredit | Ada, teruji (`BADI_DEMO=talk`) |
+| F1 | Tanya layar (tahan untuk bicara) | P0 | Kredit | Ada, teruji (`AINA_DEMO=ask`) |
+| F2 | Menandai sambil bicara (lingkari, garis bawahi, tunjuk) | P1 | Kredit | Ada, teruji (`AINA_DEMO=talk`) |
 | F3 | Mode Guided (klik demi klik) | P0 | Kredit | Ada |
 | F4 | Dikte jadi catatan | P1 | Kredit | Ada; belum diuji dengan mic sungguhan oleh penguji |
 | F5 | Ngobrol realtime dan "Hey aina" | P1 | Kredit | Ada (opsional, default `classic`); belum diuji dengan mic sungguhan |
-| F6 | Kerjakan untukku (kontrol komputer dan browser) | P0 | Kredit | Ada, teruji (`BADI_DEMO=brain`); ekstensi belum diuji dengan Chrome sungguhan |
+| F6 | Kerjakan untukku (kontrol komputer dan browser) | P0 | Kredit | Ada, teruji (`AINA_DEMO=brain`); ekstensi belum diuji dengan Chrome sungguhan |
 | F7 | File tools dan izin lewat suara | P0 | Kredit | Ada, 31 tes |
 | F8 | Mode Fokus | P1 | Notch gratis; AI kredit | Ada |
 | F9 | Sprite (helper latar belakang) dan routine | P1 | Kredit | Ada; routine belum diuji melewati sleep |
@@ -126,7 +126,7 @@ Prioritas: **P0** wajib di rilis, **P1** penting, **P2** bagus kalau ada. Status
 
 ### F4. Dikte jadi catatan
 - **FR-4.1** `Ctrl+Win` ditekan sekali untuk mulai dan sekali lagi untuk berhenti (toggle), maks. 10 menit. Tombol dikte tidak boleh sama dengan tombol bicara.
-- **FR-4.2** Hasil tidak diketik ke aplikasi aktif. Ia disimpan sebagai Markdown di `Documents\aina\Dikte\<tanggal jam>.md` (PC lama: `Documents\Badi`), dengan front matter (waktu, durasi, bahasa, jumlah kata).
+- **FR-4.2** Hasil tidak diketik ke aplikasi aktif. Ia disimpan sebagai Markdown di `Documents\aina\Dikte\<tanggal jam>.md`, dengan front matter (waktu, durasi, bahasa, jumlah kata).
 - **FR-4.3** "Rapikan hasil dikte" (default nyala) merapikan teks dengan Haiku. Di atas 120 kata, catatan diberi Ringkasan.
 - **FR-4.4** Notch menampilkan "✓ Dikte tersimpan" dengan isi (bisa di-scroll) dan tombol Salin / Buka file / Tutup.
 
@@ -157,7 +157,7 @@ Prioritas: **P0** wajib di rilis, **P1** penting, **P2** bagus kalau ada. Status
 - **FR-8.1** Fokus bisa dimulai lewat suara ("fokus di folder X", pencarian BFS kedalaman 5, bertanya kalau kandidat lebih dari satu), dengan men-drop folder ke notch, atau dari halaman Fokus di notch.
 - **FR-8.2** Sesi fokus berisi nama, folder (opsional), deskripsi, target sesi, waktu mulai, dan kunci edit. Pomodoro yang terkait diberi label fokus dan dihitung ke durasinya. Riwayat 7 hari per proyek (maks. 50 sesi) di `config.json`.
 - **FR-8.3** Semua prompt AI memuat ringkasan fokus. Dengan kunci menyala, perubahan file di luar folder fokus ditolak, sebelum `agentFileAccess` berlaku. Di dalam folder: membuat, mengedit, memindah tanpa izin; menghapus tetap bertanya.
-- **FR-8.4** Review, diff, dan pencarian bug/celah keamanan bersifat read-only dan ditulis ke `badi-reports/<tanggal>-<jenis>.md`. "Perbaiki" bekerja dari laporan terbaru.
+- **FR-8.4** Review, diff, dan pencarian bug/celah keamanan bersifat read-only dan ditulis ke `aina-reports/<tanggal>-<jenis>.md`. "Perbaiki" bekerja dari laporan terbaru.
 - **FR-8.5** Opsional: ringkasan saat selesai (selesai, tertunda, langkah berikutnya) dan mode jangan ganggu (menahan notifikasi selama fokus).
 
 ### F9. Sprite dan routine
@@ -198,7 +198,7 @@ Prioritas: **P0** wajib di rilis, **P1** penting, **P2** bagus kalau ada. Status
 - **FR-12.11** Maskot Rive (11 ekspresi), satu instance per overlay; berhenti menggambar saat diam atau tersembunyi.
 
 ### F13. Akun aina Cloud dan kredit
-- **FR-13.1** Masuk dengan Google di browser; kembali ke app lewat `badi://` (state milik app, kode sekali pakai 5 menit, disimpan sebagai hash). Token perangkat `bct_…` di Windows Credential Manager.
+- **FR-13.1** Masuk dengan Google di browser; kembali ke app lewat `aina://` (state milik app, kode sekali pakai 5 menit, disimpan sebagai hash). Token perangkat `bct_…` di Windows Credential Manager.
 - **FR-13.2** Tanpa akun, fitur AI menampilkan "Masuk ke aina Cloud dulu ya" dan Settings → Akun terbuka. Tidak ada kolom API key di Settings.
 - **FR-13.3** Akun baru mendapat 10 kredit gratis sekali per PC (hash MachineGuid).
 - **FR-13.4** Paket: Basic dan Pro (30 hari, sisa hangus), Top-Up Small/Medium/Large (tidak hangus), Enterprise (kontak). Kredit langganan dipakai dulu, lalu Top-Up. Daftar harga di tabel `plans`, bisa diubah tanpa rilis (BRD §7).
@@ -217,7 +217,7 @@ Prioritas: **P0** wajib di rilis, **P1** penting, **P2** bagus kalau ada. Status
 
 ### F15. Instalasi dan distribusi
 - **FR-15.1** Installer NSIS per pengguna (tanpa admin) dengan halaman ketentuan, gambar sidebar/header, dan bootstrapper WebView2. Diunduh dari `/download` (R2).
-- **FR-15.2** Paket MSIX untuk Microsoft Store (`RagamKarya.Aina`, Ragam Karya): `badi://` dan StartupTask dideklarasikan di manifest.
+- **FR-15.2** Paket MSIX untuk Microsoft Store (`RagamKarya.Aina`, Ragam Karya): `aina://` dan StartupTask dideklarasikan di manifest.
 - **FR-15.3** Belum ada: code signing, updater otomatis (BRD §11).
 
 ## 6. Model izin
@@ -240,12 +240,12 @@ Prioritas: **P0** wajib di rilis, **P1** penting, **P2** bagus kalau ada. Status
 
 | Area | Kebutuhan | Kondisi terukur |
 |---|---|---|
-| **Privasi** | Di disk hanya `config.json` dan hasil yang diminta (catatan dikte, `save_file`, workspace Sprite, laporan fokus). Screenshot, rekaman, audio TTS, indeks pengetahuan, data kalender, cuaca, musik hanya di memori. Pertanyaan, suara, dan screenshot melewati aina Cloud tanpa disimpan. `badi.log` hanya error teknis. | Kebijakan privasi di `/privasi` |
+| **Privasi** | Di disk hanya `config.json` dan hasil yang diminta (catatan dikte, `save_file`, workspace Sprite, laporan fokus). Screenshot, rekaman, audio TTS, indeks pengetahuan, data kalender, cuaca, musik hanya di memori. Pertanyaan, suara, dan screenshot melewati aina Cloud tanpa disimpan. `aina.log` hanya error teknis. | Kebijakan privasi di `/privasi` |
 | **Keamanan** | Tidak ada key penyedia di PC. Token di Credential Manager. CSP Tauri ketat + `freezePrototype`. Allowlist IPC di `shim.js` dan `ipc.rs`. Guard tool + hook fail-closed. Bridge hanya `127.0.0.1`. Overlay content-protected. | [hardening.md](hardening.md) |
 | **Performa** | Tidak ada loop frame saat diam. Hover notch lewat hook mouse, bukan polling. | RAM 400 MB (−28% vs v1), CPU diam 0,04%, maskot idle 0,02% CPU / 0% GPU |
 | **Latensi** | Token pertama < 1 dtk; suara pertama < 3 dtk. TTS hedged (ElevenLabs → OpenAI → suara Windows). | Token pertama 830 ms; TTS 0,8 dtk; STT 1,9 dtk |
 | **Biaya** | Companion `claude-opus-5` effort `low`; Brain dan Sprite `claude-sonnet-5-5`; prompt cache + prewarm; pembersihan screenshot di server. Setiap panggilan dicatat. | Tanya ±Rp 138 (cache hangat) |
-| **Ukuran** | Exe kecil, UI tertanam. | `badi.exe` 9,2 MB |
+| **Ukuran** | Exe kecil, UI tertanam. | `aina.exe` 9,2 MB |
 | **Kompatibilitas** | Windows 10/11 x64, WebView2. Input ke aplikasi admin butuh aina dijalankan sebagai admin. | Belum diuji 2 monitor dengan DPI berbeda |
 | **Keandalan** | Fallback suara, fallback model di server, mesin Sprite cadangan, Composio boleh gagal, overlay dibuat ulang saat monitor berubah. Pesan jelas saat offline. | — |
 | **Aksesibilitas** | "Kurangi gerakan" menghentikan animasi cuaca. Semua aksi notch bisa dilakukan lewat suara. | — |
@@ -270,7 +270,7 @@ Prioritas: **P0** wajib di rilis, **P1** penting, **P2** bagus kalau ada. Status
 
 | Metrik | Cara ukur | Target awal (usulan) |
 |---|---|---|
-| Waktu sampai suara pertama | `BADI_TIMING` | < 3 dtk untuk jawaban pendek |
+| Waktu sampai suara pertama | `AINA_TIMING` | < 3 dtk untuk jawaban pendek |
 | Biaya per tanya / per Kerjakan | Pencatatan biaya di aina Cloud | ≤ 1 kredit / median ≤ 10 kredit |
 | Aktivasi | Akun baru yang bertanya ≥ 3× di hari pertama (D1 Cloud) | ≥ 50% |
 | Konversi Free → berbayar | Akun Free yang membeli dalam 14 hari | ≥ 5% |

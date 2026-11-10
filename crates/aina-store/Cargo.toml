@@ -1,0 +1,12 @@
+[package]
+name = "aina-store"
+description = "aina's settings (config.json in %APPDATA%\\aina) and secrets (Windows Credential Manager)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }

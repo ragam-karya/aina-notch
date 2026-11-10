@@ -143,7 +143,7 @@ for (const n of names) {
   row('CPU total % (mean / p95)', (s) => `${f(s.cpu)} / ${f(s.cpuP95)}`);
   row('CPU renderer %', (s) => f(s.types.renderer?.cpu));
   row('CPU gpu-process %', (s) => f(s.types['gpu-process']?.cpu));
-  row('CPU app (badi.exe) %', (s) => f(s.types.app?.cpu));
+  row('CPU app (aina.exe) %', (s) => f(s.types.app?.cpu));
   row('GPU 3D % (mean / max)', (s) => `${f(s.gpu3d)} / ${f(s.gpu3dMax)}`);
   row('GPU dedicated MB', (s) => f(s.gpuMem, 1));
   row('working set MB (first → last, max)', (s) => `${f(s.wsFirst, 0)} → ${f(s.wsLast, 0)} (${f(s.wsMax, 0)})`);

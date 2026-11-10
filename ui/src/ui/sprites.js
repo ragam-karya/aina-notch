@@ -1,4 +1,4 @@
-// Sprite panel: a mini card at the top right for every Sprite Badi spawned (B.A.D.I. v2 sends
+// Sprite panel: a mini card at the top right for every Sprite aina spawned (aina v2 sends
 // sprites:status to the primary display's overlay; v1 never does, so this stays empty there).
 // Cards stack down from the top-right corner, newest first; when a column is full the next one starts
 // to its left. Hovering a card (after a short delay) opens its detail beside it: the task, its latest
@@ -22,7 +22,7 @@
   document.body.append(root);
 
   let LABELS = {};
-  badi.on('islandLabels', (l) => {
+  aina.on('islandLabels', (l) => {
     LABELS = l || {};
     render();
   });
@@ -31,7 +31,7 @@
   let list = [];
   let skew = 0; // main's clock minus ours, for the elapsed time
   const cards = new Map(); // id -> element
-  badi.on('sprites:status', (st) => {
+  aina.on('sprites:status', (st) => {
     list = (st && st.sprites) || [];
     skew = st && st.now ? st.now - Date.now() : 0;
     render();
@@ -49,7 +49,7 @@
     b.setAttribute('aria-label', tip);
     b.addEventListener('click', (e) => {
       e.stopPropagation();
-      badi.send('island:act', act);
+      aina.send('island:act', act);
     });
     return b;
   };
@@ -81,7 +81,7 @@
     const key = JSON.stringify(rects.map((r) => r.map(Math.round)));
     if (key === zoneKey) return;
     zoneKey = key;
-    badi.send('cursor:zone', { part: 'sprites', rects });
+    aina.send('cursor:zone', { part: 'sprites', rects });
   }
 
   function render() {
@@ -121,7 +121,7 @@
     text.append(el('div', 'sp-name'), el('div', 'sp-status'));
     const tools = el('div', 'sp-tools');
     c.append(orb, text, tools, el('div', 'sp-bar'));
-    c.addEventListener('click', () => badi.send('island:act', `sprite:open:${c.dataset.id}`));
+    c.addEventListener('click', () => aina.send('island:act', `sprite:open:${c.dataset.id}`));
     later(() => c.classList.remove('entering'), 600);
     return c;
   }
@@ -194,7 +194,7 @@
   async function openDiff(sprite, i) {
     let data = null;
     try {
-      data = await badi.invoke('sprites:diff', { sprite, i });
+      data = await aina.invoke('sprites:diff', { sprite, i });
     } catch {}
     if (open !== sprite) return;
     diffView = { sprite, i, data };
@@ -209,9 +209,9 @@
     const parts = [];
     if (d) {
       parts.push(
-        badiDiff.head(d, LABELS, {
+        ainaDiff.head(d, LABELS, {
           onBack: () => ((diffView = null), fillDetail()),
-          onOpen: (x) => badi.invoke('sprites:edit', { path: x.path, line: badiDiff.firstLine(x) }).catch(() => {}),
+          onOpen: (x) => aina.invoke('sprites:edit', { path: x.path, line: ainaDiff.firstLine(x) }).catch(() => {}),
         }),
       );
     } else {
@@ -221,7 +221,7 @@
       back.append(b);
       parts.push(back);
     }
-    const body = badiDiff.body(d, LABELS);
+    const body = ainaDiff.body(d, LABELS);
     body.style.maxHeight = Math.round((Math.min(innerHeight, screen.availHeight || innerHeight) - 2 * EDGE) * 0.6) + 'px';
     parts.push(body);
     detail.replaceChildren(...parts);
@@ -234,12 +234,12 @@
     const label = el('div', 'sp-label sp-changes-label');
     const add = s.changes.reduce((n, c) => n + c.added, 0);
     const del = s.changes.reduce((n, c) => n + c.removed, 0);
-    label.append(el('span', '', L('spriteChanges', 'Perubahan')), badiDiff.counts(add, del));
+    label.append(el('span', '', L('spriteChanges', 'Perubahan')), ainaDiff.counts(add, del));
     const files = el('div', 'dv-files');
     const shown = s.changes.slice(-MAX_FILES).reverse(); // the latest edit first
     for (const c of shown) {
       const row = el('button', 'dv-file');
-      row.append(el('span', 'dv-fname', c.name), badiDiff.counts(c.added, c.removed));
+      row.append(el('span', 'dv-fname', c.name), ainaDiff.counts(c.added, c.removed));
       row.title = c.path;
       row.addEventListener('click', (e) => (e.stopPropagation(), openDiff(s.id, c.i)));
       files.append(row);
@@ -343,7 +343,7 @@
     if (on === interactive && (!on || now - lastSent < 700)) return;
     interactive = on;
     lastSent = now;
-    badi.send('island:interactive', on);
+    aina.send('island:interactive', on);
   }
 
   const inside = (e, x, y) => {

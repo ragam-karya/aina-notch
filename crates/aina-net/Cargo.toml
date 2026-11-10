@@ -1,0 +1,8 @@
+[package]
+name = "aina-net"
+description = "Where aina's calls go: straight to the providers with the user's keys, or through aina Cloud with the account token; plus the task headers the cloud bills by"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

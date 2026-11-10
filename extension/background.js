@@ -1,5 +1,5 @@
-// Badi browser extension: keeps a WebSocket to the Badi desktop app (127.0.0.1 only) and runs the
-// browser actions Badi's brain asks for. Pair it with the 6-digit code from Badi's Settings.
+// aina browser extension: keeps a WebSocket to the aina desktop app (127.0.0.1 only) and runs the
+// browser actions aina's brain asks for. Pair it with the 6-digit code from aina's Settings.
 import { Executor } from './executor.js';
 
 const DEFAULT_PORT = 47821;
@@ -60,7 +60,7 @@ async function connect() {
     clearInterval(pingTimer);
     if (ws === socket) ws = null;
     executor.endSession();
-    // Closed before opening usually means Badi isn't running or the code is wrong.
+    // Closed before opening usually means aina isn't running or the code is wrong.
     if (ev.code === 4000) return setStatus('replaced');
     setStatus(opened ? 'disconnected' : 'offline', opened ? '' : 'aina tidak menjawab. Pastikan app aina berjalan dan kodenya benar.');
     scheduleRetry();
@@ -80,11 +80,11 @@ async function handleCall(socket, { id, name, input }) {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.create('badi-reconnect', { periodInMinutes: 1 });
+  chrome.alarms.create('aina-reconnect', { periodInMinutes: 1 });
   connect();
 });
 chrome.runtime.onStartup.addListener(connect);
-chrome.alarms.onAlarm.addListener((a) => a.name === 'badi-reconnect' && connect());
+chrome.alarms.onAlarm.addListener((a) => a.name === 'aina-reconnect' && connect());
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && (changes.code || changes.port)) {
     retryMs = 2000;

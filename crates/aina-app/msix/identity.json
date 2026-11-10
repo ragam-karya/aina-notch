@@ -1,0 +1,6 @@
+{
+  "$comment": "From Partner Center → Aina → Product identity. AINA_MSIX_NAME, AINA_MSIX_PUBLISHER and AINA_MSIX_PUBLISHER_NAME override them.",
+  "name": "RagamKarya.Aina",
+  "publisher": "CN=6B019521-47B1-4F1B-9F4A-060740C99A17",
+  "publisherDisplayName": "Ragam Karya"
+}

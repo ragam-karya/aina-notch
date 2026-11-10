@@ -1,0 +1,16 @@
+[package]
+name = "aina-voice"
+description = "aina's voice: microphone, speech to text, text to speech with hedged requests, playback (port of src/speech.js and the audio half of ui/worker.js)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+rodio = { version = "0.20", default-features = false, features = ["wav"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "multipart", "rustls-tls"] }
+
+aina-net = { path = "../aina-net" }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Media", "Media_Core", "Media_SpeechSynthesis", "Storage_Streams", "Foundation", "Foundation_Collections"] }

@@ -1,8 +1,8 @@
 // A Sprite's code diff, the way Coucou shows one: the file with +N −M, then each hunk with its line
 // numbers, added lines green and removed lines red, 3 lines of context around them. Used by the Sprite
-// card's detail (overlay) and the Sprites window. The diff comes from sprites:diff (badi-agent diff.rs):
+// card's detail (overlay) and the Sprites window. The diff comes from sprites:diff (aina-agent diff.rs):
 // { name, path, added, removed, newFile, tooLarge, hunks: [{ oldStart, newStart, lines: [[kind, oldNo, newNo, text]] }] }.
-window.badiDiff = (function () {
+window.ainaDiff = (function () {
   const el = (tag, cls, text) => {
     const e = document.createElement(tag);
     if (cls) e.className = cls;

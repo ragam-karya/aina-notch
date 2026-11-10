@@ -1,4 +1,4 @@
-// Badi's language. 'id' and 'en' are fixed languages; 'auto' (default) answers in whatever language the
+// aina's language. 'id' and 'en' are fixed languages; 'auto' (default) answers in whatever language the
 // user speaks, and then the loading states, the filler and app messages follow that language too.
 // In aina-notch this module only feeds ui-dist/i18n.json (scripts/sync-ui.mjs); the language setting
 // lives in Rust, so there is no config module here and lang() falls back to Indonesian.
@@ -146,6 +146,13 @@ const STRINGS = {
       wxFeels: 'terasa {t}°', wxSetup: 'Masukkan kota',remPrayerGuide: 'Atur kota supaya jadwal salat akurat', remPrayerSetupBtn: 'Atur', remPrayerHide: 'Sembunyikan',
       remNotifyBefore: 'Notifikasi {n} menit sebelum', remNotifyAt: 'Notifikasi tepat waktu', remNotifyOff: 'Notifikasi mati',
       prayer_imsak: 'Imsak', prayer_subuh: 'Subuh', prayer_terbit: 'Terbit', prayer_dhuha: 'Dhuha', prayer_dzuhur: 'Dzuhur', prayer_ashar: 'Ashar', prayer_maghrib: 'Maghrib', prayer_isya: 'Isya',
+      pageHome: 'Home', pageTimer: 'Timer & pomodoro', pageReminders: 'Pusat Pengingat', pagePrayer: 'Jadwal salat', pageMusic: 'Musik', pageFocus: 'Mode Fokus', pageLibrary: 'Catatan & Pengetahuan', pageTasks: 'Tugas', pageShortcuts: 'Pintasan',
+      pagePrev: 'Halaman sebelumnya', pageNext: 'Halaman berikutnya', creditsLeft: '{n} kredit tersisa', creditsSignIn: 'Silakan login dulu', creditsLogin: 'Login', miniWorking: 'bekerja',
+      homePomoHint: 'Siap dimulai', smartPlaceholder: 'Hitung, atau tulis angka untuk terbilang…', smartKindSum: 'Hitung', smartKindWords: 'Terbilang', smartUnknown: 'Belum aku kenali. Coba salah satu:', smartCopy: 'Salin', smartCopied: 'Disalin', smartCopyWords: 'Salin terbilang', smartTax: 'PPN {p}% · total {t}', smartWordsOf: 'Terbilang',
+      pomoResume: 'Lanjut', pomoPause: 'Jeda', pomoSkip: 'Lewati', pomoReset: 'Ulang', pomoStop: 'Stop', pomoSettings: 'Pengaturan pomodoro', pomoTodayUnit: 'sesi hari ini',
+      focusGoal: 'Target sesi:', focusLock: 'Kunci edit', focusPomo: 'Pomodoro untuk fokus ini',
+      musicLyrics: 'Lirik', musicOutput: 'Output suara', musicLyricsSrc: 'Lirik · LRCLIB',
+      notes: 'Catatan', knowledge: 'Pengetahuan', libNotesHint: 'Hasil dikte, tersimpan di Dokumen', libKnowHint: 'File yang kamu drop ke notch',
     },
   },
   en: {
@@ -283,6 +290,13 @@ const STRINGS = {
       wxFeels: 'feels {t}°', wxSetup: 'Enter your city',remPrayerGuide: 'Pick your city so prayer times are accurate', remPrayerSetupBtn: 'Set up', remPrayerHide: 'Hide',
       remNotifyBefore: 'Notify {n} min before', remNotifyAt: 'Notify on time', remNotifyOff: 'Notifications off',
       prayer_imsak: 'Imsak', prayer_subuh: 'Fajr', prayer_terbit: 'Sunrise', prayer_dhuha: 'Duha', prayer_dzuhur: 'Dhuhr', prayer_ashar: 'Asr', prayer_maghrib: 'Maghrib', prayer_isya: 'Isha',
+      pageHome: 'Home', pageTimer: 'Timer & pomodoro', pageReminders: 'Reminder Center', pagePrayer: 'Prayer times', pageMusic: 'Music', pageFocus: 'Focus mode', pageLibrary: 'Notes & knowledge', pageTasks: 'Tasks', pageShortcuts: 'Shortcuts',
+      pagePrev: 'Previous page', pageNext: 'Next page', creditsLeft: '{n} credits left', creditsSignIn: 'Sign in first', creditsLogin: 'Sign in', miniWorking: 'working',
+      homePomoHint: 'Ready to start', smartPlaceholder: 'Do a sum, or type a number to spell it out…', smartKindSum: 'Sum', smartKindWords: 'In words', smartUnknown: 'Not sure what that is. Try one of these:', smartCopy: 'Copy', smartCopied: 'Copied', smartCopyWords: 'Copy words', smartTax: 'VAT {p}% · total {t}', smartWordsOf: 'In words (Indonesian)',
+      pomoResume: 'Resume', pomoPause: 'Pause', pomoSkip: 'Skip', pomoReset: 'Reset', pomoStop: 'Stop', pomoSettings: 'Pomodoro settings', pomoTodayUnit: 'sessions today',
+      focusGoal: 'Session goal:', focusLock: 'Edit lock', focusPomo: 'Pomodoros for this focus',
+      musicLyrics: 'Lyrics', musicOutput: 'Sound output', musicLyricsSrc: 'Lyrics · LRCLIB',
+      notes: 'Notes', knowledge: 'Knowledge', libNotesHint: 'Your dictations, saved in Documents', libKnowHint: 'Files you dropped on the notch',
     },
   },
 };
@@ -310,7 +324,7 @@ function setSpokenLang(l) {
   if (l) spoken = l;
 }
 
-// The language for what Badi shows and says around an answer: the fixed language, or with 'auto'
+// The language for what aina shows and says around an answer: the fixed language, or with 'auto'
 // the language the user last spoke ('id' until known).
 function uiLang() {
   const l = lang();
@@ -324,7 +338,7 @@ function t(key, ...args) {
   return typeof v === 'function' ? v(...args) : v;
 }
 
-// Added to every system prompt so Badi (and its background agents) answer in the chosen language.
+// Added to every system prompt so aina (and its background agents) answer in the chosen language.
 function languageInstruction() {
   const l = lang();
   if (l === 'auto') return 'Language: reply in the language the user is speaking or writing in; text you write on screen uses that language too.';

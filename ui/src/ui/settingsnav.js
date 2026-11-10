@@ -1,6 +1,6 @@
 // The Settings side navigation, built from the page's own section headings (h2 with data-icon), so
 // settings.js and the sections stay as they are. A click scrolls to its section; while scrolling,
-// the section in view lights up in the nav. Sections settings.js hides (Badi Cloud when it is off)
+// the section in view lights up in the nav. Sections settings.js hides (aina Cloud when it is off)
 // drop out of the nav, and a heading whose text changes is followed.
 (function () {
   const nav = document.getElementById('sideNav');
@@ -13,7 +13,7 @@
     heads.forEach((h, i) => {
       h.id ||= `sec-${i}`;
       // The heading carries its icon too (again after settings.js rewrites a heading's text).
-      if (window.badiIcon && !h.querySelector('.ico')) h.prepend(window.badiIcon(h.dataset.icon || 'spark', 16));
+      if (window.ainaIcon && !h.querySelector('.ico')) h.prepend(window.ainaIcon(h.dataset.icon || 'spark', 16));
     });
     const key = heads.map((h) => h.id + h.textContent).join('|');
     if (key === build.key) return;
@@ -22,7 +22,7 @@
       const a = document.createElement('a');
       a.href = `#${h.id}`;
       a.className = 'nav-item';
-      if (window.badiIcon) a.append(window.badiIcon(h.dataset.icon || 'spark', 16));
+      if (window.ainaIcon) a.append(window.ainaIcon(h.dataset.icon || 'spark', 16));
       const t = document.createElement('span');
       t.textContent = h.textContent;
       a.append(t);
