@@ -39,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "aina-agent"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "aina-input",
  "aina-llm",
@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "aina-app"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "aina-agent",
  "aina-apps",
@@ -90,7 +90,7 @@ dependencies = [
 
 [[package]]
 name = "aina-apps"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "aina-agent",
  "aina-core",
@@ -107,7 +107,7 @@ dependencies = [
 
 [[package]]
 name = "aina-core"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "chrono",
  "serde",
@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "aina-input"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -125,7 +125,7 @@ dependencies = [
 
 [[package]]
 name = "aina-llm"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "aina-net",
  "chrono",
@@ -137,11 +137,11 @@ dependencies = [
 
 [[package]]
 name = "aina-net"
-version = "1.0.1"
+version = "1.0.2"
 
 [[package]]
 name = "aina-screen"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "aina-input",
  "base64 0.22.1",
@@ -152,7 +152,7 @@ dependencies = [
 
 [[package]]
 name = "aina-store"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "keyring",
  "serde_json",
@@ -160,7 +160,7 @@ dependencies = [
 
 [[package]]
 name = "aina-uia"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "regex",
  "serde_json",
@@ -169,7 +169,7 @@ dependencies = [
 
 [[package]]
 name = "aina-voice"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "aina-net",
  "reqwest 0.12.28",

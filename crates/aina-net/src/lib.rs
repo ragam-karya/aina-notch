@@ -66,15 +66,18 @@ pub fn with_task<T>(kind: &str, id: &str, f: impl FnOnce() -> T) -> T {
     out
 }
 
-/// Headers for a call to the cloud (none when going straight to a provider).
+/// Headers for a call to the cloud (none when going straight to a provider): the feature, the task, and
+/// the app's version (for the cloud's tracing of its calls).
 pub fn task_headers() -> Vec<(&'static str, String)> {
     if cloud().is_none() {
         return vec![];
     }
-    TASK.with(|t| match &*t.borrow() {
+    let mut h = TASK.with(|t| match &*t.borrow() {
         Some((kind, id)) => vec![("x-aina-kind", kind.clone()), ("x-aina-task", id.clone())],
         None => vec![("x-aina-kind", "tanya".into())],
-    })
+    });
+    h.push(("x-aina-version", env!("CARGO_PKG_VERSION").into()));
+    h
 }
 
 /// A short random-enough task id.
@@ -96,7 +99,7 @@ mod tests {
         assert_eq!(url(Service::Anthropic, "/v1/messages"), "https://be.aina.ai.id/v1/messages");
         assert_eq!(url(Service::ElevenLabs, "/v1/text-to-speech/x/stream"), "https://be.aina.ai.id/eleven/v1/text-to-speech/x/stream");
         assert_eq!(url(Service::Composio, "/api/v3.1/tools/X"), "https://be.aina.ai.id/composio/api/v3.1/tools/X");
-        assert_eq!(task_headers(), vec![("x-aina-kind", "tanya".to_string())]);
+        assert_eq!(task_headers(), vec![("x-aina-kind", "tanya".to_string()), ("x-aina-version", env!("CARGO_PKG_VERSION").to_string())]);
         let inside = with_task("kerjakan", "t1", task_headers);
         assert_eq!(inside[1], ("x-aina-task", "t1".to_string()));
         assert_eq!(task_headers()[0].1, "tanya", "outside the task again");
