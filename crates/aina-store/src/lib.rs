@@ -12,6 +12,8 @@ use std::sync::Mutex;
 
 use serde_json::{Map, Value};
 
+pub mod legacy;
+
 pub const SECRET_KEYS: [&str; 2] = ["extensionToken", "ainaCloudToken"];
 
 /// Provider keys, held by aina Cloud only: asking for one gives the account token (or nothing when
@@ -29,6 +31,16 @@ pub fn data_dir() -> PathBuf {
     }
     let appdata = std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
     appdata.join("aina")
+}
+
+/// Brings over what aina 1.0.0 and 1.0.1 kept under the Badi names (%APPDATA%\BADI, Credential Manager
+/// service "BADI"), once, before the Store opens (legacy.rs). Not for an AINA_PROFILE experiment.
+pub fn move_from_badi() -> Option<legacy::Moved> {
+    if std::env::var_os("AINA_PROFILE").is_some() {
+        return None;
+    }
+    let appdata = PathBuf::from(std::env::var_os("APPDATA")?);
+    legacy::move_once(&appdata.join("BADI"), &data_dir(), vault::get_in, vault::set)
 }
 
 pub struct Store {
@@ -198,7 +210,12 @@ mod vault {
     }
 
     pub fn get(key: &str) -> Option<String> {
-        entry(key).ok()?.get_password().ok().filter(|v| !v.is_empty())
+        get_in(SERVICE, key)
+    }
+
+    /// A secret under another service (the Badi names' "BADI", for the move).
+    pub fn get_in(service: &str, key: &str) -> Option<String> {
+        keyring::Entry::new(service, key).ok()?.get_password().ok().filter(|v| !v.is_empty())
     }
 
     pub fn set(key: &str, value: &str) -> Result<(), String> {
@@ -216,6 +233,9 @@ mod vault {
 #[cfg(not(windows))]
 mod vault {
     pub fn get(_: &str) -> Option<String> {
+        None
+    }
+    pub fn get_in(_: &str, _: &str) -> Option<String> {
         None
     }
     pub fn set(_: &str, _: &str) -> Result<(), String> {

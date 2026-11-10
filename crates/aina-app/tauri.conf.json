@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "aina",
   "mainBinaryName": "aina",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "identifier": "id.ai.aina.desktop",
   "build": {
     "frontendDist": "../../ui-dist"

@@ -107,6 +107,11 @@ fn main() {
                 let aumid = ::windows::core::HSTRING::from(app.config().identifier.as_str());
                 let _ = unsafe { ::windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(&aumid) };
             }
+            // An update from 1.0.0/1.0.1 brings their settings, agents and sign-in over from the Badi
+            // names, once (aina-store's legacy.rs).
+            if let Some(m) = aina_store::move_from_badi() {
+                eprintln!("[store] moved from BADI: {} files, {} settings, {} secrets", m.files, m.settings, m.secrets);
+            }
             let store = Store::open(aina_store::data_dir());
             // Provider keys live on aina Cloud only; an earlier build may have saved some on this PC.
             store.forget_provider_keys();
