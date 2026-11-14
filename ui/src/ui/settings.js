@@ -347,10 +347,11 @@ function loadReminders(c) {
   prayerCity = c.prayerCity && c.prayerCity.id ? c.prayerCity : null;
   $('prayerChosen').textContent = prayerCity ? `Dipilih: ${prayerCity.name}${prayerCity.auto ? ' (ikut lokasi)' : ''}` : 'Belum ada kota.';
   $('prayerNotify').value = String(c.prayerNotify ?? 10);
+  $('prayerDhuha').checked = c.prayerDhuha === true;
   $('prayerBox').hidden = !$('prayerEnabled').checked;
 }
 function remindersPatch() {
-  const patch = { reminderView: $('reminderView').value, reminderDensity: $('reminderDensity').value, prayerNotify: Number($('prayerNotify').value) };
+  const patch = { reminderView: $('reminderView').value, reminderDensity: $('reminderDensity').value, prayerNotify: Number($('prayerNotify').value), prayerDhuha: $('prayerDhuha').checked };
   // Prayer times stay off until a city is chosen.
   patch.prayerEnabled = $('prayerEnabled').checked && Boolean(prayerCity);
   if (prayerCity) patch.prayerCity = prayerCity;
