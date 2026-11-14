@@ -467,8 +467,18 @@ pub fn parse_lrc(text: &str) -> Vec<(u64, String)> {
     out
 }
 
+/// Cuts a "feat. …" / "ft …" / "featuring …" tail, with or without the dot, in any case.
+fn strip_feat(s: &str) -> &str {
+    let low = format!("{} ", s.to_ascii_lowercase());
+    let cut = [" featuring ", " feat. ", " feat ", " ft. ", " ft "].iter().filter_map(|p| low.find(p)).min();
+    match cut {
+        Some(i) if i < s.len() => &s[..i],
+        _ => s,
+    }
+}
+
 /// What to search for: a video's "Artist - Song (Official Video)" title becomes artist and song, and
-/// bracketed extras ("(Lyrics)", "[4K]", "ft. …") are dropped.
+/// bracketed extras ("(Lyrics)", "[4K]"), "feat …" tails and a channel's "@" are dropped.
 pub fn clean_query(title: &str, artist: &str) -> (String, String) {
     let mut t = title.to_string();
     for (open, close) in [('(', ')'), ('[', ']')] {
@@ -479,19 +489,18 @@ pub fn clean_query(title: &str, artist: &str) -> (String, String) {
             t.replace_range(a..=b, "");
         }
     }
-    if let Some(i) = t.to_lowercase().find(" ft.").or_else(|| t.to_lowercase().find(" feat.")) {
-        t.truncate(i);
-    }
     let mut artist = artist.trim().to_string();
     // A video channel ("Pizza Music", "… - Topic") is no artist; a "A - B" title names one.
-    if let Some((a, b)) = t.split_once(" - ") {
+    let split = t.split_once(" - ").or_else(|| t.split_once(" – ")).map(|(a, b)| (a.to_string(), b.to_string()));
+    if let Some((a, b)) = split {
         if artist.is_empty() || !t.to_lowercase().contains(&artist.to_lowercase()) || artist.ends_with("- Topic") {
-            artist = a.trim().to_string();
+            artist = a;
         }
-        t = b.to_string();
+        t = b;
     }
-    let artist = artist.trim_end_matches(" - Topic").trim().to_string();
-    (t.split_whitespace().collect::<Vec<_>>().join(" "), artist)
+    let t = strip_feat(&t).split_whitespace().collect::<Vec<_>>().join(" ");
+    let artist = strip_feat(artist.trim_end_matches(" - Topic").trim()).trim().trim_start_matches('@').trim().to_string();
+    (t, artist)
 }
 
 /// Synced lyrics for a track from LRCLIB (free, no account): the exact match first, then a search.
@@ -520,8 +529,23 @@ pub fn lyrics(title: &str, artist: &str, album: &str, dur_ms: Option<i64>) -> Op
     {
         return Some(l);
     }
-    let found: Value = client.get(format!("{LRCLIB}/search")).query(&[("track_name", track), ("artist_name", who)]).send().ok()?.json().ok()?;
-    found.as_array()?.iter().find_map(synced)
+    let search = |q: &[(&str, &str)]| -> Vec<Value> {
+        client.get(format!("{LRCLIB}/search")).query(q).send().ok().and_then(|r| r.json::<Value>().ok()).and_then(|v| v.as_array().cloned()).unwrap_or_default()
+    };
+    if let Some(l) = search(&[("track_name", &track), ("artist_name", &who)]).iter().find_map(synced) {
+        return Some(l);
+    }
+    // The artist as a video spells it ("Dewa19" for "Dewa 19") may not match: search the song alone and
+    // keep only a result as long as the track (or, without a length, with the same name).
+    let secs = dur_ms.filter(|d| *d > 0).map(|d| d as f64 / 1000.0);
+    let name = track.to_lowercase();
+    search(&[("q", &track)])
+        .iter()
+        .filter(|v| match secs {
+            Some(s) => v["duration"].as_f64().is_some_and(|d| (d - s).abs() <= 5.0),
+            None => v["trackName"].as_str().is_some_and(|n| n.to_lowercase().starts_with(&name)),
+        })
+        .find_map(synced)
 }
 
 #[cfg(test)]
@@ -549,6 +573,9 @@ mod tests {
         assert_eq!(clean_query("Blinding Lights", "The Weeknd"), ("Blinding Lights".into(), "The Weeknd".into()));
         assert_eq!(clean_query("Tulus - Hati-Hati di Jalan [Official Music Video]", "Tulus"), ("Hati-Hati di Jalan".into(), "Tulus".into()));
         assert_eq!(clean_query("Hati-Hati di Jalan", "Tulus - Topic"), ("Hati-Hati di Jalan".into(), "Tulus".into()));
+        assert_eq!(clean_query("@Dewa19 Feat Ello - Kau Yang Kusayang", "VIDEO LEGEND"), ("Kau Yang Kusayang".into(), "Dewa19".into()));
+        assert_eq!(clean_query("Raisa - Kali Kedua ft Afgan", ""), ("Kali Kedua".into(), "Raisa".into()));
+        assert_eq!(clean_query("Left", "Featherweight"), ("Left".into(), "Featherweight".into()));
     }
 
     #[test]
@@ -580,6 +607,8 @@ mod live {
     #[ignore]
     fn finds_lyrics() {
         let l = super::lyrics("gnash - i hate u, i love u (Lyrics) ft. olivia o'brien", "Pizza Music", "", None).expect("synced lyrics");
+        println!("{} lines, first: {:?}", l.len(), &l[..3.min(l.len())]);
+        let l = super::lyrics("@Dewa19 Feat Ello - Kau Yang Kusayang", "VIDEO LEGEND", "", Some(226_000)).expect("synced lyrics");
         println!("{} lines, first: {:?}", l.len(), &l[..3.min(l.len())]);
     }
 }
