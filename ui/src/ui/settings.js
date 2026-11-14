@@ -32,8 +32,7 @@ async function load() {
   $('realtimeBox').hidden = $('voiceEngine').value !== 'realtime';
   $('tts').value = c.tts;
   $('openaiVoice').value = c.openaiVoice;
-  // Asking is never Ctrl + Win (main resets such a config to Ctrl + Alt).
-  const talkKeys = c.pttCombo?.length && !c.pttCombo.includes('Meta') ? c.pttCombo : ['Ctrl', 'Alt'];
+  const talkKeys = c.pttCombo?.length ? c.pttCombo : ['Ctrl', 'Meta'];
   $('ptt').value = talkKeys.join('+');
   $('dict').value = (c.dictationCombo || []).join('+');
   $('dictationCleanup').checked = c.dictationCleanup;
@@ -164,11 +163,6 @@ function parseShortcuts(text) {
 async function save() {
   const ptt = $('ptt').value.split('+');
   const dict = $('dict').value ? $('dict').value.split('+') : [];
-  if (ptt.includes('Meta')) {
-    $('saveStatus').textContent = 'Hotkey bicara tidak boleh pakai tombol Win.';
-    $('saveStatus').className = 'status err';
-    return false;
-  }
   if (dict.length && ptt.join() === dict.join()) {
     $('saveStatus').textContent = 'Hotkey bicara dan dikte tidak boleh sama.';
     $('saveStatus').className = 'status err';

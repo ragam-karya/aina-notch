@@ -96,7 +96,7 @@
 <aside class="side"><div class="brand"><img class="logo" src="../../assets/brand/aina-logo-dark.png" alt="aina" /></div><nav id="sideNav"></nav></aside>
 <main>
   <h1>aina</h1>
-  <p class="hint">Tahan <kbd id="pttHint">Ctrl+Alt</kbd> lalu bicara tentang apa pun di layar. Tahan <kbd id="dictHint">Ctrl+Win</kbd> <span id="dictWhat">untuk mendikte teks ke field yang sedang aktif</span>. <kbd>Esc</kbd> menghentikan jawaban.</p>
+  <p class="hint">Tahan <kbd id="pttHint">Ctrl+Win</kbd> lalu bicara tentang apa pun di layar. Tahan <kbd id="dictHint">Ctrl+Alt</kbd> <span id="dictWhat">untuk mendikte teks ke field yang sedang aktif</span>. <kbd>Esc</kbd> menghentikan jawaban.</p>
 
   <section id="cloudSection" hidden>
   <h2 data-icon="cloud">Akun aina Cloud</h2>
@@ -403,12 +403,14 @@
   <div class="card">
     <label for="ptt">Tahan untuk bicara</label>
     <select id="ptt">
+      <option value="Ctrl+Meta">Ctrl + Win</option>
       <option value="Ctrl+Alt">Ctrl + Alt</option>
       <option value="Ctrl+Shift">Ctrl + Shift</option>
       <option value="Alt+Shift">Alt + Shift</option>
     </select>
     <label for="dict">Tahan untuk dikte</label>
     <select id="dict">
+      <option value="Ctrl+Alt">Ctrl + Alt</option>
       <option value="Ctrl+Meta">Ctrl + Win</option>
       <option value="Ctrl+Shift">Ctrl + Shift</option>
       <option value="Alt+Meta">Alt + Win</option>

@@ -115,13 +115,18 @@ static KEYS: LazyLock<Mutex<Hotkeys>> = LazyLock::new(|| Mutex::new(Hotkeys::def
 pub fn configure_keys(app: &AppHandle) {
     let store = &state(app).store;
     let combo = |k: &str| store.get(k).as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect::<Vec<_>>()).unwrap_or_default();
-    // Asking is never Ctrl + Win: a config from before that rule goes back to Ctrl + Alt, on disk too,
-    // so Settings and the tray tooltip say what the keys really are.
-    if combo("pttCombo").iter().any(|k| k == "Meta") {
+    // Asking moved to Ctrl + Win and dictation to Ctrl + Alt: a config that still has the old pair
+    // (Ctrl + Alt to ask, Ctrl + Win to dictate) is swapped once, on disk too, so Settings and the tray
+    // tooltip say what the keys really are. Keys the person chose themselves are kept.
+    if store.get("keysSwapped").as_bool() != Some(true) {
         let mut patch = serde_json::Map::new();
-        patch.insert("pttCombo".into(), json!(["Ctrl", "Alt"]));
+        if combo("pttCombo") == ["Ctrl", "Alt"] && combo("dictationCombo") == ["Ctrl", "Meta"] {
+            patch.insert("pttCombo".into(), json!(["Ctrl", "Meta"]));
+            patch.insert("dictationCombo".into(), json!(["Ctrl", "Alt"]));
+        }
+        patch.insert("keysSwapped".into(), json!(true));
         if let Err(e) = store.remember(&patch) {
-            eprintln!("[talk] resetting the talk keys: {e}");
+            eprintln!("[talk] swapping the talk and dictation keys: {e}");
         }
     }
     KEYS.lock().unwrap().configure(&combo("pttCombo"), &combo("dictationCombo"));

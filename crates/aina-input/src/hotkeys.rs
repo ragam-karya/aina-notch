@@ -73,25 +73,22 @@ pub struct Hotkeys {
 
 impl Default for Hotkeys {
     fn default() -> Self {
-        Hotkeys { down: HashSet::new(), active: None, cancelled: false, ptt: vec![Mod::Ctrl, Mod::Alt], dictation: vec![Mod::Ctrl, Mod::Meta] }
+        Hotkeys { down: HashSet::new(), active: None, cancelled: false, ptt: vec![Mod::Ctrl, Mod::Meta], dictation: vec![Mod::Ctrl, Mod::Alt] }
     }
 }
 
 impl Hotkeys {
-    /// Whether a combo may be the talk keys: never one with Win (Ctrl + Win is dictation's, and Win
-    /// combos belong to Windows).
-    pub fn talk_combo_allowed(combo: &[Mod]) -> bool {
-        !combo.is_empty() && !combo.contains(&Mod::Meta)
-    }
-
-    /// Combos from config ("pttCombo": ["Ctrl", "Alt"]); unknown names are dropped. A talk combo with
-    /// Win is refused, and the talk keys stay Ctrl + Alt.
+    /// Combos from config ("pttCombo": ["Ctrl", "Meta"]); unknown names are dropped. Without talk keys
+    /// they are Ctrl + Win; dictation on the same keys as talking would never start, so it is off then.
     pub fn configure(&mut self, ptt: &[String], dictation: &[String]) {
         let parse = |c: &[String]| c.iter().filter_map(|n| Mod::parse(n)).collect::<Vec<_>>();
         let talk = parse(ptt);
-        self.ptt = if Self::talk_combo_allowed(&talk) { talk } else { vec![Mod::Ctrl, Mod::Alt] };
+        self.ptt = if talk.is_empty() { vec![Mod::Ctrl, Mod::Meta] } else { talk };
         if !dictation.is_empty() {
             self.dictation = parse(dictation);
+        }
+        if self.dictation == self.ptt {
+            self.dictation.clear();
         }
     }
 
@@ -117,7 +114,7 @@ impl Hotkeys {
 
     /// Drops keys that `held` says are no longer down. A release the hook never saw (Ctrl+Alt+Del and
     /// Win+L switch to the secure desktop, which takes the key-ups) would otherwise leave Ctrl and Alt
-    /// "held" for good: then Ctrl alone starts the talk keys and Ctrl+Win (dictation) never matches.
+    /// "held" for good: then Ctrl alone starts dictation and Ctrl+Win (talking) never matches.
     /// A hold whose keys went this way is cancelled.
     pub fn forget_released(&mut self, held: impl Fn(u16) -> bool) -> Vec<Event> {
         self.down.retain(|vk| held(*vk));
@@ -183,12 +180,12 @@ mod tests {
     const KEY_S: u16 = 0x53;
 
     #[test]
-    fn hold_ctrl_alt_starts_and_releasing_either_ends() {
+    fn hold_ctrl_win_starts_and_releasing_either_ends() {
         let mut h = Hotkeys::default();
         assert_eq!(h.key_down(LCTRL), vec![]);
-        assert_eq!(h.key_down(LALT), vec![Event::Start(Kind::Ptt)]);
-        assert_eq!(h.key_down(LALT), vec![]); // key repeat
-        assert_eq!(h.key_up(LALT), vec![Event::End(Kind::Ptt)]);
+        assert_eq!(h.key_down(LWIN), vec![Event::Start(Kind::Ptt)]);
+        assert_eq!(h.key_down(LWIN), vec![]); // key repeat
+        assert_eq!(h.key_up(LWIN), vec![Event::End(Kind::Ptt)]);
         assert_eq!(h.key_up(LCTRL), vec![]);
     }
 
@@ -196,10 +193,10 @@ mod tests {
     fn a_real_key_during_the_hold_cancels_it() {
         let mut h = Hotkeys::default();
         h.key_down(LCTRL);
-        h.key_down(LALT);
+        h.key_down(LWIN);
         assert_eq!(h.key_down(KEY_S), vec![Event::Cancel(Kind::Ptt)]);
         assert_eq!(h.key_up(KEY_S), vec![]);
-        assert_eq!(h.key_up(LALT), vec![]); // cancelled: no end
+        assert_eq!(h.key_up(LWIN), vec![]); // cancelled: no end
     }
 
     #[test]
@@ -211,12 +208,12 @@ mod tests {
     }
 
     #[test]
-    fn ctrl_win_is_dictation_and_escape_enter_pass_through() {
+    fn ctrl_alt_is_dictation_and_escape_enter_pass_through() {
         let mut h = Hotkeys::default();
         h.key_down(LCTRL);
-        assert_eq!(h.key_down(LWIN), vec![Event::Start(Kind::Dictation)]);
+        assert_eq!(h.key_down(LALT), vec![Event::Start(Kind::Dictation)]);
         assert_eq!(h.key_up(LCTRL), vec![Event::End(Kind::Dictation)]);
-        h.key_up(LWIN);
+        h.key_up(LALT);
         assert_eq!(h.key_down(VK_ESCAPE), vec![Event::Escape]);
         assert_eq!(h.key_down(VK_RETURN), vec![Event::Enter]);
     }
@@ -227,22 +224,22 @@ mod tests {
         let mut h = Hotkeys::default();
         h.key_down(LCTRL);
         h.key_down(LALT);
-        assert_eq!(h.key_down(0x2e), vec![Event::Cancel(Kind::Ptt)]);
-        // Without forgetting them, Ctrl+Win (dictation) never matches.
+        assert_eq!(h.key_down(0x2e), vec![Event::Cancel(Kind::Dictation)]);
+        // Without forgetting them, Ctrl+Win (talking) never matches.
         assert_eq!(h.key_down(LCTRL), vec![]);
         assert_eq!(h.key_down(LWIN), vec![]);
-        // Back from the secure desktop, only Ctrl is really down: Ctrl+Win is dictation again.
+        // Back from the secure desktop, only Ctrl is really down: Ctrl+Win is talking again.
         let mut h = Hotkeys::default();
         h.key_down(LCTRL);
         h.key_down(LALT);
         h.key_down(0x2e);
         h.forget_released(|vk| vk == LCTRL);
         assert_eq!(h.key_down(LCTRL), vec![]);
-        assert_eq!(h.key_down(LWIN), vec![Event::Start(Kind::Dictation)]);
+        assert_eq!(h.key_down(LWIN), vec![Event::Start(Kind::Ptt)]);
     }
 
     #[test]
-    fn ctrl_alone_does_not_start_talk_after_a_lost_alt_release() {
+    fn ctrl_alone_does_not_start_dictation_after_a_lost_alt_release() {
         let mut h = Hotkeys::default();
         h.key_down(LALT); // its key-up lost
         h.forget_released(|vk| vk == LCTRL);
@@ -253,21 +250,21 @@ mod tests {
     fn a_hold_whose_keys_are_gone_is_cancelled() {
         let mut h = Hotkeys::default();
         h.key_down(LCTRL);
-        assert_eq!(h.key_down(LALT), vec![Event::Start(Kind::Ptt)]);
+        assert_eq!(h.key_down(LWIN), vec![Event::Start(Kind::Ptt)]);
         assert_eq!(h.forget_released(|_| false), vec![Event::Cancel(Kind::Ptt)]);
         assert_eq!(h.active(), None);
-        assert_eq!(h.key_up(LALT), vec![]);
+        assert_eq!(h.key_up(LWIN), vec![]);
     }
 
     #[test]
-    fn asking_is_never_ctrl_win() {
+    fn talking_and_dictation_never_share_keys() {
         let mut h = Hotkeys::default();
-        h.configure(&["Ctrl".into(), "Meta".into()], &["Alt".into(), "Meta".into()]);
+        h.configure(&["Ctrl".into(), "Alt".into()], &["Ctrl".into(), "Alt".into()]);
         assert_eq!(h.ptt, vec![Mod::Ctrl, Mod::Alt]);
-        h.key_down(LCTRL);
-        assert_eq!(h.key_down(LWIN), vec![]);
-        h.key_up(LWIN);
-        assert_eq!(h.key_down(LALT), vec![Event::Start(Kind::Ptt)]);
+        assert!(h.dictation.is_empty());
+        let mut h = Hotkeys::default();
+        h.configure(&[], &[]);
+        assert_eq!((h.ptt.clone(), h.dictation.clone()), (vec![Mod::Ctrl, Mod::Meta], vec![Mod::Ctrl, Mod::Alt]));
     }
 
     #[test]
