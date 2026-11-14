@@ -226,6 +226,7 @@ pub fn refresh(app: &AppHandle) -> Result<Value, String> {
         return Ok(Value::Null);
     }
     let a = call(app, "GET", "/v1/account", None)?;
+    fill_name(app, &a);
     let changed = *ACCOUNT.lock().unwrap() != a;
     *ACCOUNT.lock().unwrap() = a.clone();
     // Only a real change reaches Settings: it reloads on cloud:changed by asking cloud:status, which
@@ -263,6 +264,33 @@ pub fn refresh(app: &AppHandle) -> Result<Value, String> {
     }
     *seen = failures;
     Ok(a)
+}
+
+/// "Nama panggilanmu" starts as the name Google gave at sign-in: filled once, when the field is empty
+/// or still holds the old product name ("Badi", left by the move from 1.0.x), so a name the person
+/// typed is kept, and one they cleared on purpose stays cleared (userNameFromAccount).
+fn fill_name(app: &AppHandle, a: &Value) {
+    let st = state(app);
+    let done = st.store.get("userNameFromAccount").as_bool() == Some(true);
+    let current = st.store.get("userName").as_str().unwrap_or("").to_string();
+    let Some(name) = name_to_fill(&current, done, a["name"].as_str().unwrap_or("")) else { return };
+    let mut patch = Map::new();
+    patch.insert("userName".into(), json!(name));
+    patch.insert("userNameFromAccount".into(), json!(true));
+    if st.store.save(&patch).is_ok() {
+        crate::settings::prefetch(app); // the wake replies say the name
+    }
+}
+
+/// The name to put in "Nama panggilanmu", or None to leave it as it is.
+fn name_to_fill(current: &str, done: bool, google: &str) -> Option<String> {
+    let current = current.trim();
+    if done || !(current.is_empty() || current.eq_ignore_ascii_case("badi")) {
+        return None;
+    }
+    let name: String = google.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(30).collect();
+    let name = name.trim_end().to_string();
+    (!name.is_empty()).then_some(name)
 }
 
 /// At start: route through the cloud when signed in, and keep the account fresh.
@@ -458,5 +486,20 @@ pub fn invoke(app: &AppHandle, ch: &str, arg: &Value) -> Result<Value, String> {
             shell_open(&format!("{}{path}", web_base(app))).map(|_| Value::Null)
         }
         _ => Err(format!("unknown channel: {ch}")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::name_to_fill;
+
+    #[test]
+    fn the_google_name_fills_an_empty_or_old_default_once() {
+        assert_eq!(name_to_fill("", false, "Sari Wulandari").as_deref(), Some("Sari Wulandari"));
+        assert_eq!(name_to_fill(" Badi ", false, "Sari").as_deref(), Some("Sari"));
+        assert_eq!(name_to_fill("Ndut", false, "Sari"), None); // typed by the person: kept
+        assert_eq!(name_to_fill("", true, "Sari"), None); // cleared on purpose after the fill
+        assert_eq!(name_to_fill("", false, "  "), None);
+        assert_eq!(name_to_fill("", false, "Muhammad  Faisal\tAbdurrahman Wahid Ramadhan").as_deref(), Some("Muhammad Faisal Abdurrahman Wa"));
     }
 }
