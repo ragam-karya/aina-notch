@@ -32,7 +32,9 @@ async function load() {
   $('realtimeBox').hidden = $('voiceEngine').value !== 'realtime';
   $('tts').value = c.tts;
   $('openaiVoice').value = c.openaiVoice;
-  $('ptt').value = c.pttCombo.join('+');
+  // Asking is never Ctrl + Win (main resets such a config to Ctrl + Alt).
+  const talkKeys = c.pttCombo?.length && !c.pttCombo.includes('Meta') ? c.pttCombo : ['Ctrl', 'Alt'];
+  $('ptt').value = talkKeys.join('+');
   $('dict').value = (c.dictationCombo || []).join('+');
   $('dictationCleanup').checked = c.dictationCleanup;
   $('wakeWord').checked = Boolean(c.wakeWord);
@@ -44,7 +46,7 @@ async function load() {
   $('brainEffort').value = c.brainEffort || 'medium';
   loadPomodoro(c);
   loadExtension();
-  $('pttHint').textContent = pretty(c.pttCombo.join('+'));
+  $('pttHint').textContent = pretty(talkKeys.join('+'));
   $('dictHint').textContent = c.dictationCombo?.length ? pretty(c.dictationCombo.join('+')) : 'mati';
   fillVoices(c.systemVoice);
   toggleVoiceBoxes();
@@ -162,6 +164,11 @@ function parseShortcuts(text) {
 async function save() {
   const ptt = $('ptt').value.split('+');
   const dict = $('dict').value ? $('dict').value.split('+') : [];
+  if (ptt.includes('Meta')) {
+    $('saveStatus').textContent = 'Hotkey bicara tidak boleh pakai tombol Win.';
+    $('saveStatus').className = 'status err';
+    return false;
+  }
   if (dict.length && ptt.join() === dict.join()) {
     $('saveStatus').textContent = 'Hotkey bicara dan dikte tidak boleh sama.';
     $('saveStatus').className = 'status err';

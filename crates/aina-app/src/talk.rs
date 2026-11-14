@@ -8,6 +8,7 @@
 // Automation names what is under the mark. On release the question is transcribed and goes to
 // turn.rs; Esc, Enter and a spoken answer also answer a question aina is waiting on.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::thread::sleep;
@@ -104,6 +105,9 @@ fn overlay_at(app: &AppHandle, x: f64, y: f64) -> Option<String> {
         .map(|o| o.label.clone())
 }
 
+// The talk keys are down only to end a running dictation (see start).
+static ENDS_DICTATION: AtomicBool = AtomicBool::new(false);
+
 // The hotkey state machine; Settings reconfigures it in place when a combo changes.
 static KEYS: LazyLock<Mutex<Hotkeys>> = LazyLock::new(|| Mutex::new(Hotkeys::default()));
 
@@ -111,6 +115,15 @@ static KEYS: LazyLock<Mutex<Hotkeys>> = LazyLock::new(|| Mutex::new(Hotkeys::def
 pub fn configure_keys(app: &AppHandle) {
     let store = &state(app).store;
     let combo = |k: &str| store.get(k).as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect::<Vec<_>>()).unwrap_or_default();
+    // Asking is never Ctrl + Win: a config from before that rule goes back to Ctrl + Alt, on disk too,
+    // so Settings and the tray tooltip say what the keys really are.
+    if combo("pttCombo").iter().any(|k| k == "Meta") {
+        let mut patch = serde_json::Map::new();
+        patch.insert("pttCombo".into(), json!(["Ctrl", "Alt"]));
+        if let Err(e) = store.remember(&patch) {
+            eprintln!("[talk] resetting the talk keys: {e}");
+        }
+    }
     KEYS.lock().unwrap().configure(&combo("pttCombo"), &combo("dictationCombo"));
 }
 
@@ -126,7 +139,12 @@ pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         for input in events {
             let fired = match input {
-                Input::Key { vk, down: true } => KEYS.lock().unwrap().key_down(vk),
+                Input::Key { vk, down: true } => {
+                    let mut keys = KEYS.lock().unwrap();
+                    let mut fired = keys.forget_released(hook::is_down);
+                    fired.extend(keys.key_down(vk));
+                    fired
+                }
                 Input::Key { vk, down: false } => KEYS.lock().unwrap().key_up(vk),
                 Input::MouseDown { x, y, .. } => {
                     if let Some((_, ox, oy)) = to_overlay(&app, x, y) {
@@ -140,6 +158,15 @@ pub fn start(app: AppHandle) {
                     eprintln!("[keys] {e:?}");
                 }
                 match e {
+                    // The talk keys pressed while a dictation runs only end (and save) it: that press
+                    // is not a question, so its release and any cancel are not one either. Without
+                    // this the realtime engine took the release for a tap and opened a conversation.
+                    Event::Start(Kind::Ptt) if crate::dictation::dictating() => {
+                        ENDS_DICTATION.store(true, Ordering::SeqCst);
+                        let app = app.clone();
+                        std::thread::spawn(move || crate::dictation::up(&app));
+                    }
+                    Event::End(Kind::Ptt) | Event::Cancel(Kind::Ptt) if ENDS_DICTATION.swap(false, Ordering::SeqCst) => {}
                     // Through the realtime engine when it is on (it falls back to the classic path).
                     Event::Start(Kind::Ptt) => crate::realtime::talk_down(&app),
                     Event::End(Kind::Ptt) => {
