@@ -74,5 +74,6 @@
   "reminderView": "agenda",
   "reminderDensity": "compact",
   "prayerEnabled": false,
-  "prayerNotify": 10
+  "prayerNotify": 10,
+  "prayerDhuha": false
 }

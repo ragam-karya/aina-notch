@@ -310,6 +310,11 @@ fn notify_minutes(app: &AppHandle) -> i64 {
     state(app).store.get("prayerNotify").as_i64().unwrap_or(10)
 }
 
+// Dhuha is sunnah: it only gets a notice (and a spot in the compact notch) when the person asks for it.
+fn dhuha_on(app: &AppHandle) -> bool {
+    state(app).store.get("prayerDhuha") == true
+}
+
 fn prayer_view(app: &AppHandle) -> Value {
     let city = prayer_city(app);
     // Without a city the times can't be right for the person: the page offers to set one up; with one
@@ -337,16 +342,18 @@ fn prayer_view(app: &AppHandle) -> Value {
     })
 }
 
-// Each obligatory prayer is announced once, `prayerNotify` minutes before (0: at its time).
+// Each obligatory prayer (and dhuha, when switched on) is announced once, `prayerNotify` minutes
+// before (0: at its time).
 fn check_prayer_notices(app: &AppHandle) {
     let minutes = notify_minutes(app);
     if !prayer_on(app) || minutes < 0 {
         return;
     }
     let Some((times, _)) = prayer_today(app) else { return };
+    let dhuha = dhuha_on(app);
     let now = now_ms();
     let day = Local::now().date_naive().format("%Y-%m-%d").to_string();
-    for (k, at) in times.into_iter().filter(|(k, _)| prayer::FARD.contains(k)) {
+    for (k, at) in times.into_iter().filter(|(k, _)| prayer::FARD.contains(k) || (dhuha && *k == "dhuha")) {
         let from = at - minutes * 60_000;
         if now < from || now > at + 5 * 60_000 {
             continue;
@@ -427,9 +434,10 @@ pub fn next_item(app: &AppHandle) -> Value {
     let mut events = local_events(app, now - 60_000, soon);
     events.extend(CAL.lock().unwrap().remote.iter().filter(|e| e.overlaps(now, soon)).cloned());
     let mut best = calendar::next_up(&events, now).filter(|e| e.due() <= soon).map(|e| json!({ "title": e.title, "at": e.due(), "source": e.source, "kind": e.kind }));
+    let dhuha = dhuha_on(app);
     if prayer_on(app)
         && let Some((times, tomorrow)) = prayer_today(app)
-        && let Some((k, at, _)) = prayer::next(&times, tomorrow, now)
+        && let Some((k, at, _)) = prayer::next(&times.into_iter().filter(|(k, _)| dhuha || *k != "dhuha").collect::<Vec<_>>(), tomorrow, now)
         && at <= now + 30 * 60_000
         && best.as_ref().is_none_or(|b| b["at"].as_i64().unwrap_or(i64::MAX) > at)
     {
