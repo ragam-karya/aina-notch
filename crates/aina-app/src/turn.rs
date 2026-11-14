@@ -164,25 +164,23 @@ pub fn begin_turn(app: &AppHandle, turn_gen: u64, sent_chime: bool, filler: bool
     });
 }
 
-// "Bentar, aku lihat dulu ya.": spoken if its audio is ready this instant, else shown as text (and
-// fetched for next time).
+// "Bentar, aku lihat dulu ya.": spoken if its audio is on disk this instant, else shown as text (and
+// fetched for free for next time, talk::line_clip).
 fn play_filler(app: &AppHandle) {
-    let line = aina_llm::persona::filler(crate::i18n::lang(app) == "en").to_string();
-    let st = state(app);
-    let voice = talk::voice(app);
-    match voice.as_ref().and_then(|v| st.tts.cached(&line, v)) {
-        Some(clip) => {
-            let (a, shown, l) = (app.clone(), app.clone(), line.clone());
+    let line = aina_llm::persona::filler(crate::i18n::lang(app) == "en");
+    match talk::kept_line(app, &line) {
+        Some((clip, spoken)) => {
+            let (a, shown) = (app.clone(), app.clone());
             std::thread::spawn(move || {
-                state(&a).player.play(clip, move |d| windows::broadcast(&shown, "text", json!({ "text": l, "ms": d.as_millis() })));
+                state(&a).player.play(clip, move |d| windows::broadcast(&shown, "text", json!({ "text": spoken, "ms": d.as_millis() })));
             });
         }
         None => {
-            windows::broadcast(app, "text", json!({ "text": line, "ms": line.chars().count() * 40 }));
-            if let Some(v) = voice {
+            windows::broadcast(app, "text", json!({ "text": line.text, "ms": line.text.chars().count() * 40 }));
+            if talk::voice(app).is_some() {
                 let a = app.clone();
                 std::thread::spawn(move || {
-                    let _ = state(&a).tts.synthesize(&line, &v);
+                    let _ = talk::line_clip(&a, &line);
                 });
             }
         }

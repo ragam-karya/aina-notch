@@ -950,7 +950,7 @@ pub fn start_conversation(app: &AppHandle, kind: &str) {
     let (a, kind) = (app.clone(), kind.to_string());
     std::thread::spawn(move || {
         if talk::voice(&a).is_some() {
-            talk::say(&a, &line);
+            talk::say_line(&a, &line);
         } else {
             turn::chime(&a, "start");
         }
