@@ -55,6 +55,7 @@
   "agentFileAccess": false,
   "wakeWord": false,
   "userName": "",
+  "userNameFromAccount": false,
   "voiceEngine": "classic",
   "realtimeModel": "gpt-realtime-2.1-mini",
   "realtimeVoice": "marin",
