@@ -1,4 +1,4 @@
-// Dictation (Ctrl+Win by default). A quick press starts it and the next press ends it, so the hands
+// Dictation (Ctrl+Alt by default). A quick press starts it and the next press ends it, so the hands
 // are free for other work in between; holding the keys works too (released = done). The words are
 // saved as a note: a Markdown file in Documents\aina\Dikte (notes.rs), and shown in the notch. Claude Haiku
 // tidies them first when that's on (punctuation, filler words, spoken corrections) and sums up a long
