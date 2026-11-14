@@ -477,75 +477,206 @@ fn strip_feat(s: &str) -> &str {
     }
 }
 
-/// What to search for: a video's "Artist - Song (Official Video)" title becomes artist and song, and
-/// bracketed extras ("(Lyrics)", "[4K]"), "feat …" tails and a channel's "@" are dropped.
-pub fn clean_query(title: &str, artist: &str) -> (String, String) {
-    let mut t = title.to_string();
-    for (open, close) in [('(', ')'), ('[', ']')] {
-        while let (Some(a), Some(b)) = (t.find(open), t.find(close)) {
-            if b < a {
-                break;
-            }
-            t.replace_range(a..=b, "");
-        }
-    }
-    let mut artist = artist.trim().to_string();
-    // A video channel ("Pizza Music", "… - Topic") is no artist; a "A - B" title names one.
-    let split = t.split_once(" - ").or_else(|| t.split_once(" – ")).map(|(a, b)| (a.to_string(), b.to_string()));
-    if let Some((a, b)) = split {
-        if artist.is_empty() || !t.to_lowercase().contains(&artist.to_lowercase()) || artist.ends_with("- Topic") {
-            artist = a;
-        }
-        t = b;
-    }
-    let t = strip_feat(&t).split_whitespace().collect::<Vec<_>>().join(" ");
-    let artist = strip_feat(artist.trim_end_matches(" - Topic").trim()).trim().trim_start_matches('@').trim().to_string();
-    (t, artist)
+/// Letters and digits only, lowercased: "Dewa 19" and "Dewa19" compare equal.
+fn norm(s: &str) -> String {
+    s.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
 }
 
-/// Synced lyrics for a track from LRCLIB (free, no account): the exact match first, then a search.
-/// None when there are none, or only unsynced ones. Sends only the title, artist, album and length.
-pub fn lyrics(title: &str, artist: &str, album: &str, dur_ms: Option<i64>) -> Option<Vec<(u64, String)>> {
+/// A " - …" tail that names a version of the song, not the song: Spotify's "Song - Remastered 2011",
+/// "- Live", "- Radio Edit", "- From \"Film\"". Only the tail's first word counts, and beyond
+/// "Remastered" only for a music app (one that gives an album), so a video's "Artist - Live Forever"
+/// stays a song.
+fn is_version(tail: &str, music_app: bool) -> bool {
+    let low = tail.trim().to_lowercase();
+    let words: Vec<&str> = low.split_whitespace().collect();
+    let Some(first) = words.first() else { return false };
+    let year = first.len() == 4 && first.chars().all(|c| c.is_ascii_digit());
+    if first.starts_with("remaster") || (year && words.get(1).is_some_and(|w| w.starts_with("remaster"))) {
+        return true;
+    }
+    const WORDS: [&str; 20] = [
+        "live", "remix", "edit", "radio", "acoustic", "akustik", "version", "versi", "mono", "stereo", "demo", "instrumental", "from", "unplugged", "single", "original",
+        "extended", "bonus", "deluxe", "sped",
+    ];
+    music_app && WORDS.contains(first)
+}
+
+/// Bracketed extras out: "(Official Video)", "[4K]", "【MV】", and an unclosed "(…" to the end.
+fn drop_brackets(t: &str) -> String {
+    let mut t = t.to_string();
+    for (open, close) in [('(', ')'), ('[', ']'), ('【', '】'), ('〔', '〕')] {
+        while let Some(a) = t.find(open) {
+            match t[a..].find(close) {
+                Some(b) => t.replace_range(a..a + b + close.len_utf8(), " "),
+                None => t.truncate(a),
+            }
+        }
+    }
+    t
+}
+
+/// One part of a title cleaned: "Lirik Lagu …" in front, "… Official Music Video" / "Lyrics" / "HD"
+/// at the end, "feat …" tails and runs of spaces go.
+fn tidy(part: &str) -> String {
+    let mut s = strip_feat(part.trim()).trim().to_string();
+    for p in ["lirik lagu ", "video lirik ", "lirik ", "lyrics ", "lyric "] {
+        if s.len() > p.len() && s.to_ascii_lowercase().starts_with(p) {
+            s = s[p.len()..].trim().to_string();
+        }
+    }
+    const TAILS: [&str; 19] = [
+        "official music video", "official lyric video", "official lyrics video", "official video", "official audio", "official mv", "music video", "lyric video",
+        "lyrics video", "video lirik", "video klip", "video clip", "lirik", "lyrics", "lyric", "audio", "mv", "hd", "4k",
+    ];
+    loop {
+        let low = s.to_ascii_lowercase();
+        let Some(p) = TAILS.iter().find(|p| low.ends_with(&format!(" {p}"))) else { break };
+        s.truncate(s.len() - p.len() - 1);
+        s = s.trim_end_matches([' ', '-', '|', ',']).to_string();
+    }
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// What to search for, as (song, artist). A video's "Artist - Song (Official Video)" title gives both
+/// (a channel such as "Pizza Music" or "… - Topic" is no artist), and so does `Artist "Song"`; extras
+/// are dropped: brackets, "| …", hashtags, "- YouTube", "Lirik", "feat …", a channel's "@" and "VEVO".
+/// A music app's own title ("Song - Remastered 2011" by Queen, with an album) keeps its artist.
+pub fn clean_query(title: &str, artist: &str, album: &str) -> (String, String) {
+    let music_app = !album.trim().is_empty() && !artist.trim().is_empty();
+    let mut t = title.trim().to_string();
+    if t.to_ascii_lowercase().ends_with(" - youtube") {
+        t.truncate(t.len() - " - youtube".len());
+    }
+    let mut t = drop_brackets(&t);
+    if let Some(i) = t.find(" | ").or_else(|| t.find(" ｜ ")) {
+        t.truncate(i);
+    }
+    let t = t.split_whitespace().filter(|w| !w.starts_with('#')).collect::<Vec<_>>().join(" ");
+    let mut artist = artist.trim().trim_end_matches(" - Topic").to_string();
+    let split = [" - ", " – ", " — "].iter().find_map(|d| t.split_once(d)).map(|(a, b)| (a.to_string(), b.to_string())).or_else(|| {
+        // Artist "Song" / Artist 「Song」
+        [('"', '"'), ('“', '”'), ('「', '」'), ('『', '』')].iter().find_map(|(o, c)| {
+            let a = t.find(*o)?;
+            let b = t[a + o.len_utf8()..].find(*c)? + a + o.len_utf8();
+            Some((t[..a].to_string(), t[a + o.len_utf8()..b].to_string()))
+        })
+    });
+    let mut song = t.clone();
+    if let Some((a, b)) = split {
+        if is_version(&b, music_app) {
+            song = a;
+        } else if !music_app {
+            let a = tidy(&a);
+            if !a.is_empty() && (artist.is_empty() || !norm(&t).contains(&norm(&artist))) {
+                artist = a;
+            }
+            song = b;
+        }
+    }
+    let artist = tidy(artist.trim_start_matches('@')).trim_end_matches("VEVO").trim().to_string();
+    (tidy(&song), artist)
+}
+
+/// The artists in a credit, normalized: "Mahalini x Nuca" → ["mahalini", "nuca"].
+fn artist_parts(who: &str) -> Vec<String> {
+    let mut parts = vec![format!(" {} ", who.to_lowercase())];
+    for sep in [",", ";", "&", "/", " x ", " and ", " dan ", " with ", " feat. ", " feat ", " ft. ", " ft "] {
+        parts = parts.iter().flat_map(|p| p.split(sep).map(|s| format!(" {} ", s.trim())).collect::<Vec<_>>()).collect();
+    }
+    parts.iter().map(|p| norm(p)).filter(|p| p.len() >= 2).collect()
+}
+
+/// Whether an artist we have names one of a result's: one of ours is one of theirs, or starts it or
+/// is started by it ("Dewa19" ~ "Dewa 19 & Ello", "Dewa 19 Official" ~ "Dewa 19", "Mahalini x Nuca"
+/// ~ "Mahalini & Nuca"), but "TaylorSwift" is not "Tonight I'm Taylor Swift".
+fn artist_fits(who: &str, theirs: &str) -> bool {
+    if norm(who).is_empty() {
+        return true;
+    }
+    let theirs = artist_parts(theirs);
+    artist_parts(who).iter().any(|a| theirs.iter().any(|b| a == b || (a.len() >= 3 && b.len() >= 3 && (a.starts_with(b.as_str()) || b.starts_with(a.as_str())))))
+}
+
+/// Whether a result's name is the song's, once its extras are off: "Kau Yang Kusayang" is
+/// "Kau Yang Kusayang (feat. Ello)" and "Kau yang Kusayang feat. Ello", but "Live" isn't "Live Forever".
+fn song_fits(song: &str, theirs: &str) -> bool {
+    let t = drop_brackets(theirs);
+    let t = match [" - ", " – ", " — "].iter().find_map(|d| t.split_once(d)) {
+        Some((a, b)) if is_version(b, true) => a.to_string(),
+        _ => t.clone(),
+    };
+    let a = norm(song);
+    !a.is_empty() && a == norm(strip_feat(&t))
+}
+
+/// The LRCLIB record picked for a track (with synced lyrics), for `lyrics` and the live tests.
+/// Every result has to be the same song by the same artist (one as long as the track first), so a
+/// wrong guess finds nothing rather than another song or a cover.
+pub fn find_lyrics(title: &str, artist: &str, album: &str, dur_ms: Option<i64>) -> Option<Value> {
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(8))
         .user_agent(concat!("aina/", env!("CARGO_PKG_VERSION"), " (Windows desktop assistant)"))
         .build()
         .ok()?;
-    let synced = |v: &Value| v["syncedLyrics"].as_str().map(parse_lrc).filter(|l| !l.is_empty());
-    let (track, who) = clean_query(title, artist);
+    let has_synced = |v: &Value| v["syncedLyrics"].as_str().is_some_and(|s| !parse_lrc(s).is_empty());
+    let (track, who) = clean_query(title, artist, album);
     if track.is_empty() {
         return None;
     }
+    let secs = dur_ms.filter(|d| *d > 0).map(|d| d as f64 / 1000.0);
+    let near = |v: &Value| secs.zip(v["duration"].as_f64()).is_some_and(|(s, d)| (d - s).abs() <= 5.0);
+    let named = |v: &Value, song: &str| song_fits(song, v["trackName"].as_str().unwrap_or(""));
+    let by = |v: &Value, who: &str| artist_fits(who, v["artistName"].as_str().unwrap_or(""));
+
     let mut q = vec![("track_name", track.clone()), ("artist_name", who.clone())];
     if !album.is_empty() {
         q.push(("album_name", album.to_string()));
     }
-    if let Some(d) = dur_ms.filter(|d| *d > 0) {
-        q.push(("duration", (d / 1000).to_string()));
+    if let Some(s) = secs {
+        q.push(("duration", (s.round() as i64).to_string()));
     }
     if let Ok(r) = client.get(format!("{LRCLIB}/get")).query(&q).send()
         && r.status().is_success()
-        && let Some(l) = r.json::<Value>().ok().as_ref().and_then(synced)
+        && let Ok(v) = r.json::<Value>()
+        && has_synced(&v)
+        && named(&v, &track)
     {
-        return Some(l);
+        return Some(v);
     }
     let search = |q: &[(&str, &str)]| -> Vec<Value> {
         client.get(format!("{LRCLIB}/search")).query(q).send().ok().and_then(|r| r.json::<Value>().ok()).and_then(|v| v.as_array().cloned()).unwrap_or_default()
     };
-    if let Some(l) = search(&[("track_name", &track), ("artist_name", &who)]).iter().find_map(synced) {
-        return Some(l);
+    // The same song by the same artist (a cover of the same length is another song), preferring one
+    // as long as the track.
+    let pick = |found: Vec<Value>, song: &str, who: &str| -> Option<Value> {
+        let ok: Vec<Value> = found.into_iter().filter(|v| has_synced(v) && named(v, song) && by(v, who)).collect();
+        // Best first: the artist named first ("Dewa 19 & Ello" for "Dewa19", not "Tonight I'm Taylor
+        // Swift" for "TaylorSwift"), then the same length.
+        let lead = |v: &Value| !who.is_empty() && norm(v["artistName"].as_str().unwrap_or("")).starts_with(&norm(who));
+        let best = ok.iter().max_by_key(|v| (lead(v), near(v)))?;
+        (near(best) || !(who.is_empty() && secs.is_some())).then(|| best.clone())
+    };
+    let attempt = |song: &str, who: &str| -> Option<Value> {
+        pick(search(&[("track_name", song), ("artist_name", who)]), song, who)
+            // The artist as a video spells it ("Dewa19", "TaylorSwiftVEVO") may not match LRCLIB's
+            // search: the song alone, checked against the artist here.
+            .or_else(|| pick(search(&[("q", song)]), song, who))
+    };
+    if let Some(v) = attempt(&track, &who) {
+        return Some(v);
     }
-    // The artist as a video spells it ("Dewa19" for "Dewa 19") may not match: search the song alone and
-    // keep only a result as long as the track (or, without a length, with the same name).
-    let secs = dur_ms.filter(|d| *d > 0).map(|d| d as f64 / 1000.0);
-    let name = track.to_lowercase();
-    search(&[("q", &track)])
-        .iter()
-        .filter(|v| match secs {
-            Some(s) => v["duration"].as_f64().is_some_and(|d| (d - s).abs() <= 5.0),
-            None => v["trackName"].as_str().is_some_and(|n| n.to_lowercase().starts_with(&name)),
-        })
-        .find_map(synced)
+    // "Song - Artist" the other way round (lyric channels do this), never for a music app's title.
+    if album.trim().is_empty() && !who.is_empty() && norm(&who) != norm(&track) {
+        return attempt(&who, &track);
+    }
+    None
+}
+
+/// Synced lyrics for a track from LRCLIB (free, no account), as (ms, line). None when there are none,
+/// only unsynced ones, or no result is surely the same song. Sends only the title, artist, album and
+/// length.
+pub fn lyrics(title: &str, artist: &str, album: &str, dur_ms: Option<i64>) -> Option<Vec<(u64, String)>> {
+    find_lyrics(title, artist, album, dur_ms).and_then(|v| v["syncedLyrics"].as_str().map(parse_lrc)).filter(|l| !l.is_empty())
 }
 
 #[cfg(test)]
@@ -569,13 +700,57 @@ mod tests {
 
     #[test]
     fn queries() {
-        assert_eq!(clean_query("gnash - i hate u, i love u (Lyrics) ft. olivia o'brien", "Pizza Music"), ("i hate u, i love u".into(), "gnash".into()));
-        assert_eq!(clean_query("Blinding Lights", "The Weeknd"), ("Blinding Lights".into(), "The Weeknd".into()));
-        assert_eq!(clean_query("Tulus - Hati-Hati di Jalan [Official Music Video]", "Tulus"), ("Hati-Hati di Jalan".into(), "Tulus".into()));
-        assert_eq!(clean_query("Hati-Hati di Jalan", "Tulus - Topic"), ("Hati-Hati di Jalan".into(), "Tulus".into()));
-        assert_eq!(clean_query("@Dewa19 Feat Ello - Kau Yang Kusayang", "VIDEO LEGEND"), ("Kau Yang Kusayang".into(), "Dewa19".into()));
-        assert_eq!(clean_query("Raisa - Kali Kedua ft Afgan", ""), ("Kali Kedua".into(), "Raisa".into()));
-        assert_eq!(clean_query("Left", "Featherweight"), ("Left".into(), "Featherweight".into()));
+        let q = |t: &str, a: &str, al: &str| clean_query(t, a, al);
+        let p = |s: &str, a: &str| (s.to_string(), a.to_string());
+        // Video titles (no album).
+        assert_eq!(q("gnash - i hate u, i love u (Lyrics) ft. olivia o'brien", "Pizza Music", ""), p("i hate u, i love u", "gnash"));
+        assert_eq!(q("Blinding Lights", "The Weeknd", ""), p("Blinding Lights", "The Weeknd"));
+        assert_eq!(q("Tulus - Hati-Hati di Jalan [Official Music Video]", "Tulus", ""), p("Hati-Hati di Jalan", "Tulus"));
+        assert_eq!(q("Hati-Hati di Jalan", "Tulus - Topic", ""), p("Hati-Hati di Jalan", "Tulus"));
+        assert_eq!(q("@Dewa19 Feat Ello - Kau Yang Kusayang", "VIDEO LEGEND", ""), p("Kau Yang Kusayang", "Dewa19"));
+        assert_eq!(q("Raisa - Kali Kedua ft Afgan", "", ""), p("Kali Kedua", "Raisa"));
+        assert_eq!(q("Left", "Featherweight", ""), p("Left", "Featherweight"));
+        assert_eq!(q("Dewa 19 - Kangen | Official Music Video", "Dewa 19 Official", ""), p("Kangen", "Dewa 19"));
+        assert_eq!(q("Payung Teduh - Akad (Official Music Video) | HD", "Payung Teduh", ""), p("Akad", "Payung Teduh"));
+        assert_eq!(q("Nadin Amizah - Bertaut | Live at Synchronize", "Nadin Amizah", ""), p("Bertaut", "Nadin Amizah"));
+        assert_eq!(q("Tulus — Monokrom", "TULUS", ""), p("Monokrom", "TULUS"));
+        assert_eq!(q("Dewa 19 \"Kangen\"", "Dewa 19 Official", ""), p("Kangen", "Dewa 19"));
+        assert_eq!(q("Tulus - Hati-Hati di Jalan #tulus #lagu", "Tulus", ""), p("Hati-Hati di Jalan", "Tulus"));
+        assert_eq!(q("Sheila On 7 - Dan... (Official Lyric Video", "Sheila On 7", ""), p("Dan...", "Sheila On 7"));
+        assert_eq!(q("Bernadya - Satu Bulan Official Lyric Video", "Bernadya", ""), p("Satu Bulan", "Bernadya"));
+        assert_eq!(q("Mahalini - Sial (Official Music Video) - YouTube", "", ""), p("Sial", "Mahalini"));
+        assert_eq!(q("【MV】YOASOBI - アイドル", "Ayase / YOASOBI", ""), p("アイドル", "YOASOBI"));
+        assert_eq!(q("Shake It Off", "TaylorSwiftVEVO", ""), p("Shake It Off", "TaylorSwift"));
+        // Song and artist the other way round: cleaned as given; the lookup tries both ways.
+        assert_eq!(q("Lirik Lagu Kangen - Dewa 19", "Lirik Channel", ""), p("Dewa 19", "Kangen"));
+        // A video's "- Live …" is part of the song; only "Remastered" counts as a version there.
+        assert_eq!(q("Oasis - Live Forever", "Rhino", ""), p("Live Forever", "Oasis"));
+        assert_eq!(q("Dewa 19 - Kangen Live", "Dewa 19", ""), p("Kangen Live", "Dewa 19"));
+        assert_eq!(q("Audio", "LSD", ""), p("Audio", "LSD"));
+        // A music app's titles (with an album) keep their artist.
+        assert_eq!(q("Bohemian Rhapsody - Remastered 2011", "Queen", "A Night at the Opera"), p("Bohemian Rhapsody", "Queen"));
+        assert_eq!(q("Kangen - Live", "Dewa 19", "Live Album"), p("Kangen", "Dewa 19"));
+        assert_eq!(q("Let It Go - From \"Frozen\"", "Idina Menzel", "Frozen"), p("Let It Go", "Idina Menzel"));
+        assert_eq!(q("Pt. 2 - Interlude", "Someone", "Album"), p("Pt. 2 - Interlude", "Someone"));
+    }
+
+    #[test]
+    fn same_song_only() {
+        assert!(song_fits("Kau Yang Kusayang", "Kau Yang Kusayang (feat. Ello)"));
+        assert!(song_fits("Kau Yang Kusayang", "Kau yang Kusayang feat. Ello"));
+        assert!(song_fits("Bohemian Rhapsody", "Bohemian Rhapsody - Remastered 2011"));
+        assert!(song_fits("Dan...", "Dan"));
+        assert!(!song_fits("Live", "Live Forever"));
+        assert!(!song_fits("Kau Yang Kusayang", "Kau Yang Sangat Kusayang"));
+        assert!(artist_fits("Dewa19", "Dewa 19 & Ello"));
+        assert!(artist_fits("Mahalini x Nuca", "Mahalini & Nuca"));
+        assert!(artist_fits("Dewa 19 Official", "Dewa 19"));
+        assert!(artist_fits("TaylorSwift", "Taylor Swift"));
+        assert!(artist_fits("Rizky Febian & Mahalini", "Mahalini & Rizky Febian"));
+        assert!(!artist_fits("Kangen", "Dewa 19"));
+        assert!(!artist_fits("Lirik Channel", "Dewa 19"));
+        assert!(!artist_fits("TaylorSwift", "Tonight i'm Taylor Swift"));
+        assert!(!artist_fits("TaylorSwift", "Scott Bradlee & Postmodern Jukebox feat. Von Smith"));
     }
 
     #[test]
@@ -602,13 +777,46 @@ mod live {
         }
     }
 
-    // A known song through LRCLIB, with a video-style title.
+    // Title shapes through LRCLIB: each must find the song named (by its artist), or nothing at all,
+    // never another song. Prints what each one picked.
     #[test]
     #[ignore]
     fn finds_lyrics() {
-        let l = super::lyrics("gnash - i hate u, i love u (Lyrics) ft. olivia o'brien", "Pizza Music", "", None).expect("synced lyrics");
-        println!("{} lines, first: {:?}", l.len(), &l[..3.min(l.len())]);
-        let l = super::lyrics("@Dewa19 Feat Ello - Kau Yang Kusayang", "VIDEO LEGEND", "", Some(226_000)).expect("synced lyrics");
-        println!("{} lines, first: {:?}", l.len(), &l[..3.min(l.len())]);
+        // (title, artist, album, length ms, the song and artist it must be; "" = nothing found is fine)
+        type Case<'a> = (&'a str, &'a str, &'a str, Option<i64>, &'a str, &'a str);
+        let cases: &[Case] = &[
+            ("gnash - i hate u, i love u (Lyrics) ft. olivia o'brien", "Pizza Music", "", None, "i hate u, i love u", "gnash"),
+            ("@Dewa19 Feat Ello - Kau Yang Kusayang", "VIDEO LEGEND", "", Some(226_000), "Kau Yang Kusayang", "Dewa"),
+            ("Dewa 19 - Kangen | Official Music Video", "Dewa 19 Official", "", None, "Kangen", "Dewa"),
+            ("Payung Teduh - Akad (Official Music Video) | HD", "Payung Teduh", "", None, "Akad", "Payung Teduh"),
+            ("Tulus — Monokrom", "TULUS", "", None, "Monokrom", "Tulus"),
+            ("Dewa 19 \"Kangen\"", "Dewa 19 Official", "", None, "Kangen", "Dewa"),
+            ("Lirik Lagu Kangen - Dewa 19", "Lirik Channel", "", None, "Kangen", "Dewa"),
+            ("Kangen - Dewa 19 (Lirik)", "Lirik Channel", "", None, "Kangen", "Dewa"),
+            ("Tulus - Hati-Hati di Jalan #tulus #lagu", "Tulus", "", None, "Hati-Hati di Jalan", "Tulus"),
+            ("Sheila On 7 - Dan... (Official Lyric Video", "Sheila On 7", "", None, "Dan", "Sheila"),
+            ("Bernadya - Satu Bulan Official Lyric Video", "Bernadya", "", None, "Satu Bulan", "Bernadya"),
+            ("Mahalini - Sial (Official Music Video) - YouTube", "", "", None, "Sial", "Mahalini"),
+            ("Mahalini x Nuca - Aku Yang Salah", "Mahalini", "", None, "Aku Yang Salah", "Mahalini"),
+            // LRCLIB's search for the song alone shows only covers: never one of them.
+            ("Shake It Off", "TaylorSwiftVEVO", "", Some(242_000), "Shake It Off", "Taylor Swift"),
+            ("Nadin Amizah - Bertaut | Live at Synchronize", "Nadin Amizah", "", None, "Bertaut", "Nadin"),
+            ("Bohemian Rhapsody - Remastered 2011", "Queen", "A Night at the Opera", Some(354_000), "Bohemian Rhapsody", "Queen"),
+            ("Kangen - Live", "Dewa 19", "Live Album", None, "Kangen", "Dewa"),
+            ("Kau Yang Kusayang", "Dewa 19, Ello", "Best Of", None, "Kau Yang Kusayang", "Dewa"),
+        ];
+        let mut wrong = Vec::new();
+        for (title, artist, album, dur, song, by) in cases {
+            let v = super::find_lyrics(title, artist, album, *dur);
+            let (got_song, got_by) = v.as_ref().map(|v| (v["trackName"].as_str().unwrap_or(""), v["artistName"].as_str().unwrap_or(""))).unwrap_or(("", ""));
+            println!("{title:<52} => {}", if v.is_some() { format!("{got_by} — {got_song}") } else { "(nothing)".into() });
+            if v.is_some() && !(super::song_fits(song, got_song) && super::norm(got_by).starts_with(&super::norm(by))) {
+                wrong.push(format!("{title}: got {got_by} — {got_song}"));
+            }
+            if v.is_none() && !song.is_empty() {
+                wrong.push(format!("{title}: nothing found"));
+            }
+        }
+        assert!(wrong.is_empty(), "{wrong:#?}");
     }
 }
