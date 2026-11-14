@@ -1067,22 +1067,25 @@
       return null;
     }
   }
-  const rupiah = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
-  // What the box holds: { kind: 'words' | 'sum', value, sub } or null.
+  // A figure as shown: a plain number, never a currency (the box can't tell money from any other sum),
+  // keeping its decimals.
+  const figure = (n) => n.toLocaleString('id-ID', { maximumFractionDigits: 6 });
+  // What the box holds: { kind: 'words' | 'sum', value, sub } or null. A typed "rp" or "rupiah" is
+  // read past, so "rp 10.000 x 2" still works out.
   function readQuery(q) {
-    const t = q.trim().toLowerCase();
+    const t = q.trim().toLowerCase().replace(/(^|[^a-z])(?:rp\.?|rupiah)(?![a-z])/g, '$1').trim();
     if (!t) return null;
     const N = '([\\d.,]+\\s*(?:ribu|rb|juta|jt|miliar|triliun|k|m|t)?)';
     let m;
     // "15% dari 2.350.000", "15% x 2,35jt".
     if ((m = t.match(new RegExp(`^${N}\\s*%\\s*(?:dari|of|x|×|\\*)\\s*${N}$`)))) {
       const [a, b] = [readNumber(m[1]), readNumber(m[2])];
-      if (!Number.isNaN(a) && !Number.isNaN(b)) return { kind: 'sum', value: (a / 100) * b, sub: `${a}% × ${rupiah(b)}` };
+      if (!Number.isNaN(a) && !Number.isNaN(b)) return { kind: 'sum', value: (a / 100) * b, sub: `${a}% × ${figure(b)}` };
     }
     // "ppn 11% 1,5jt": the tax, and the total with it.
     if ((m = t.match(new RegExp(`^(?:ppn|pajak|tax)\\s*${N}\\s*%\\s*(?:dari\\s*)?${N}$`)))) {
       const [a, b] = [readNumber(m[1]), readNumber(m[2])];
-      if (!Number.isNaN(a) && !Number.isNaN(b)) return { kind: 'sum', value: (b * a) / 100, sub: fill(label('smartTax', 'PPN {p}% · total {t}'), { p: a, t: rupiah(b + (b * a) / 100) }) };
+      if (!Number.isNaN(a) && !Number.isNaN(b)) return { kind: 'sum', value: (b * a) / 100, sub: fill(label('smartTax', 'PPN {p}% · total {t}'), { p: a, t: figure(b + (b * a) / 100) }) };
     }
     // A number alone: spelled out.
     const alone = readNumber(t);
@@ -1090,6 +1093,8 @@
     const v = evalSum(t);
     return v === null ? null : { kind: 'sum', value: v, sub: q.trim() };
   }
+  // The words for an answer, for a whole number only (no words for 2,5).
+  const answerWords = (r) => (Number.isInteger(r.value) ? terbilang(r.value) : '');
   // Indonesian words for a whole number, to the trillions: "dua juta tiga ratus lima puluh ribu".
   function terbilang(n) {
     const one = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
@@ -1162,7 +1167,8 @@
   async function copySmart(which) {
     const r = readQuery(smart.q);
     if (!r) return;
-    const text = which === 'words' ? terbilang(r.value) + (r.kind === 'sum' ? ' rupiah' : '') : r.kind === 'sum' ? rupiah(r.value) : Math.round(r.value).toLocaleString('id-ID');
+    const text = which === 'words' ? answerWords(r) : figure(r.value);
+    if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -1197,11 +1203,11 @@
       box.append(ex);
       return box;
     }
-    const words = terbilang(r.value);
-    const main = r.kind === 'sum' ? rupiah(r.value) : Math.round(r.value).toLocaleString('id-ID');
+    const words = answerWords(r);
+    const main = figure(r.value);
     const col = div('scol');
     col.append(div('ssub', r.sub), div('smain', main));
-    if (words) col.append(div('swords', r.kind === 'sum' ? `${words} rupiah` : words));
+    if (words) col.append(div('swords', words));
     const act = div('sact');
     const c1 = localButton('smartcopy:main', smart.copied === 'main' ? label('smartCopied', 'Disalin') : label('smartCopy', 'Salin'), smart.copied === 'main' ? 'chip done' : 'primary');
     act.append(c1);
