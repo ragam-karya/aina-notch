@@ -81,28 +81,19 @@ pub fn require(app: &AppHandle) -> bool {
     true
 }
 
-/// What aina says when the credits ran out: spoken from a clip fetched earlier or by Windows' voice,
-/// so it costs nothing (talk::say_free).
-pub fn out_line(en: bool) -> &'static str {
-    if en {
-        "Looks like we need a short break. For now, I can't help you any further. Don't worry, your work is safe. You can pick up again once your allowance renews, or add credits if you'd like to keep going now."
-    } else {
-        "Sepertinya kita perlu jeda sebentar. Untuk sekarang, aku belum bisa bantu kamu lagi. Tenang, pekerjaanmu tetap aman. Kamu bisa lanjut lagi setelah jatahmu diperbarui, atau tambahkan kredit kalau ingin melanjutkan sekarang."
-    }
-}
-
 /// The last account seen has no whole credit left (an unlimited account shows none of these).
 fn no_credits() -> bool {
     let c = &account()["credits"];
     c["out"] == true || c["left"].as_i64() == Some(0)
 }
 
-/// Says the out-of-credits line, then leaves the Beli kredit panel in the notch.
+/// Says the out-of-credits line (aina_llm::persona::out_line: free, kept on disk, talk::say_line), then
+/// leaves the Beli kredit panel in the notch.
 pub fn out_of_credits(app: &AppHandle) {
     let a = app.clone();
     std::thread::spawn(move || {
         let en = crate::i18n::lang(&a) == "en";
-        crate::talk::say_free(&a, out_line(en));
+        crate::talk::say_line(&a, &aina_llm::persona::out_line(en));
         crate::turn::set_phase(&a, "idle");
         let line = if en { "Add credits to keep going now, or wait until your allowance renews." } else { "Tambah kredit untuk lanjut sekarang, atau tunggu jatahmu diperbarui." };
         credits_out(&a, line);
