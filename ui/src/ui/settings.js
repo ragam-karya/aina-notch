@@ -847,7 +847,13 @@ $('cloudDelete').onclick = async () => {
   }
 };
 for (const a of document.querySelectorAll('[data-open]')) a.onclick = (e) => (e.preventDefault(), aina.invoke('cloud:open', a.dataset.open));
-aina.on('cloud:changed', loadCloud);
+aina.on('cloud:changed', async () => {
+  loadCloud();
+  // Signing in fills "Nama panggilanmu" with the Google name (cloud.rs fill_name): shown here too,
+  // so saving this open window doesn't put the empty field back.
+  const f = $('userName');
+  if (!f.value.trim() && document.activeElement !== f) f.value = (await aina.invoke('config:get')).userName || '';
+});
 loadCloud();
 
 // aina v2 keeps dictations as notes (Markdown files) and shows them in the notch, instead of typing them.
