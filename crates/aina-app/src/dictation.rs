@@ -73,6 +73,8 @@ pub fn down(app: &AppHandle) {
     if crate::talk::listening(app) {
         return; // already holding the talk keys
     }
+    // A realtime conversation keeps its own microphone open and would answer the dictation: end it.
+    crate::realtime::stop(app);
     turn::cancel(app);
     *STARTED.lock().unwrap() = Some(Instant::now());
     crate::notch::pin_display(app);
