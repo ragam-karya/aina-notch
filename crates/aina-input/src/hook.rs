@@ -50,6 +50,12 @@ pub fn muted() -> bool {
     now_ms() < MUTED_UNTIL.load(Ordering::Relaxed)
 }
 
+/// Whether a key is physically down right now, whatever the hook saw (it misses releases made on the
+/// secure desktop: Ctrl+Alt+Del, Win+L, a UAC prompt).
+pub fn is_down(vk: u16) -> bool {
+    unsafe { windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(vk as i32) < 0 }
+}
+
 fn pack(x: i32, y: i32) -> u64 {
     ((x as u32 as u64) << 32) | (y as u32 as u64)
 }

@@ -2,7 +2,9 @@
 // once warm) or OpenAI (usually 1.5–2 s but stalls at random for 35–55 s), plus the Windows voices
 // (free, offline). A stalled cloud request is overtaken rather than waited for: every HEDGE without an
 // answer another identical request starts alongside it (up to ATTEMPTS); the first to finish wins.
-// Short lines are kept in memory so they play instantly next time; nothing is written to disk.
+// Short lines are kept in memory so they play instantly next time. Only aina's fixed lines (greeting,
+// wake replies, filler, out of credits) are kept on disk (`disk`), and those are spoken by aina Cloud
+// for free (`cloud_line`).
 
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -32,7 +34,7 @@ pub enum Voice {
 }
 
 impl Voice {
-    fn cache_key(&self, text: &str) -> String {
+    pub fn cache_key(&self, text: &str) -> String {
         match self {
             Voice::Eleven { voice, lang, .. } => format!("eleven|{voice}|{lang}|{text}"),
             Voice::OpenAi { voice, .. } => format!("openai|{voice}|{text}"),
@@ -115,6 +117,109 @@ fn eleven(text: &str, key: &str, voice: &str, model: &str, lang: &str) -> Result
         return Err(failure("ElevenLabs", status, res.text().unwrap_or_default()));
     }
     Ok(Clip::Pcm { samples: pcm16(&res.bytes().map_err(|e| e.to_string())?), rate: PCM_RATE })
+}
+
+/// One of aina's fixed lines (aina-llm persona::Line) spoken by aina Cloud for free (POST /v1/voice/line):
+/// the app names the line, the cloud composes its text, and sends it back with the audio. Only for a
+/// cloud voice while signed in (None otherwise).
+pub fn cloud_line(voice: &Voice, id: &str, en: bool, name: &str, wake: bool) -> Option<Result<(Clip, String), String>> {
+    let base = aina_net::cloud()?;
+    let (token, engine, voice_id, model) = match voice {
+        Voice::Eleven { key, voice, model, .. } => (key, "eleven", voice, model),
+        Voice::OpenAi { key, voice, model } => (key, "openai", voice, model),
+        Voice::System { .. } => return None,
+    };
+    let body = json!({ "line": id, "lang": if en { "en" } else { "id" }, "name": name, "wake": wake, "engine": engine, "voice": voice_id, "model": model });
+    let call = || -> Result<(Clip, String), String> {
+        let mut req = Client::builder().timeout(GIVE_UP).build().map_err(|e| e.to_string())?.post(format!("{base}/v1/voice/line")).bearer_auth(token).json(&body);
+        for (k, v) in aina_net::task_headers() {
+            req = req.header(k, v);
+        }
+        let res = req.send().map_err(|e| e.to_string())?;
+        if !res.status().is_success() {
+            let status = res.status();
+            return Err(failure("aina Cloud", status, res.text().unwrap_or_default()));
+        }
+        let text = res.headers().get("x-aina-text").and_then(|v| v.to_str().ok()).map(percent_decode).unwrap_or_default();
+        Ok((Clip::Pcm { samples: pcm16(&res.bytes().map_err(|e| e.to_string())?), rate: PCM_RATE }, text))
+    };
+    Some(call())
+}
+
+fn percent_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        let hex = |c: u8| (c as char).to_digit(16);
+        match (b[i], b.get(i + 1).copied().and_then(hex), b.get(i + 2).copied().and_then(hex)) {
+            (b'%', Some(h), Some(l)) => {
+                out.push((h * 16 + l) as u8);
+                i += 3;
+            }
+            (c, _, _) => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// aina's fixed lines kept on disk (voice-cache\ in aina's data folder), so each is fetched once per
+/// voice: a file per line, named by a hash of its voice and text, holding the text and its PCM audio.
+/// Nothing else is written there (answers stay in memory only).
+pub mod disk {
+    use std::path::{Path, PathBuf};
+
+    use super::{Clip, Voice};
+
+    const MAGIC: &[u8; 4] = b"AVL1";
+
+    fn file(dir: &Path, voice: &Voice, text: &str) -> PathBuf {
+        // FNV-1a: stable across runs and builds (std's hasher is not).
+        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+        for b in voice.cache_key(text).bytes() {
+            h = (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        dir.join(format!("{h:016x}.pcm"))
+    }
+
+    /// The line's clip and text (as spoken), when kept.
+    pub fn load(dir: &Path, voice: &Voice, text: &str) -> Option<(Clip, String)> {
+        let b = std::fs::read(file(dir, voice, text)).ok()?;
+        let num = |at: usize| b.get(at..at + 4).map(|s| u32::from_le_bytes([s[0], s[1], s[2], s[3]]));
+        if b.get(..4)? != MAGIC {
+            return None;
+        }
+        let (rate, len) = (num(4)?, num(8)? as usize);
+        let spoken = String::from_utf8(b.get(12..12 + len)?.to_vec()).ok()?;
+        let pcm = b.get(12 + len..)?;
+        if pcm.is_empty() || pcm.len() % 2 != 0 {
+            return None;
+        }
+        let samples = pcm.as_chunks::<2>().0.iter().map(|c| i16::from_le_bytes(*c)).collect();
+        Some((Clip::Pcm { samples, rate }, spoken))
+    }
+
+    /// Keeps a line's clip (PCM only) under the text it was asked for, with the text as spoken.
+    pub fn save(dir: &Path, voice: &Voice, text: &str, clip: &Clip, spoken: &str) -> std::io::Result<()> {
+        let Clip::Pcm { samples, rate } = clip else { return Ok(()) };
+        std::fs::create_dir_all(dir)?;
+        let mut b = Vec::with_capacity(12 + spoken.len() + samples.len() * 2);
+        b.extend_from_slice(MAGIC);
+        b.extend_from_slice(&rate.to_le_bytes());
+        b.extend_from_slice(&(spoken.len() as u32).to_le_bytes());
+        b.extend_from_slice(spoken.as_bytes());
+        for s in samples {
+            b.extend_from_slice(&s.to_le_bytes());
+        }
+        // Written whole, then moved in place, so a half-written file is never read.
+        let path = file(dir, voice, text);
+        let tmp = path.with_extension("tmp");
+        std::fs::write(&tmp, b)?;
+        std::fs::rename(tmp, path)
+    }
 }
 
 fn openai(text: &str, key: &str, voice: &str, model: &str) -> Result<Clip, String> {
@@ -268,5 +373,42 @@ mod tests {
         let v = Voice::System { name: "x".into(), lang: "id".into() };
         tts.cache.lock().unwrap().push_back((v.cache_key("halo"), Clip::Wav(vec![1, 2])));
         assert_eq!(tts.synthesize("halo", &v), Ok(Clip::Wav(vec![1, 2])));
+    }
+
+    #[test]
+    fn fixed_lines_are_kept_on_disk_per_voice() {
+        let dir = std::env::temp_dir().join(format!("aina-voice-cache-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let eleven = Voice::Eleven { key: "t".into(), voice: "v1".into(), model: "m".into(), lang: "id".into() };
+        let other = Voice::Eleven { key: "t".into(), voice: "v2".into(), model: "m".into(), lang: "id".into() };
+        let clip = Clip::Pcm { samples: vec![0, 1, -1, i16::MAX, i16::MIN], rate: 24_000 };
+        assert_eq!(disk::load(&dir, &eleven, "Pagi, Ayu!"), None, "nothing kept yet");
+        disk::save(&dir, &eleven, "Pagi, Ayu!", &clip, "Pagi, Ayu! (as spoken)").unwrap();
+        assert_eq!(disk::load(&dir, &eleven, "Pagi, Ayu!"), Some((clip.clone(), "Pagi, Ayu! (as spoken)".into())));
+        // Another voice or another text is another clip.
+        assert_eq!(disk::load(&dir, &other, "Pagi, Ayu!"), None);
+        assert_eq!(disk::load(&dir, &eleven, "Pagi, Budi!"), None);
+        // A damaged file is ignored rather than played.
+        for f in std::fs::read_dir(&dir).unwrap() {
+            let p = f.unwrap().path();
+            let mut b = std::fs::read(&p).unwrap();
+            b.truncate(13);
+            std::fs::write(&p, b).unwrap();
+        }
+        assert_eq!(disk::load(&dir, &eleven, "Pagi, Ayu!"), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn line_text_comes_back_percent_encoded() {
+        assert_eq!(percent_decode("Pagi%2C%20Ren%C3%A9e%21"), "Pagi, Renée!");
+        assert_eq!(percent_decode("Ya%3F"), "Ya?");
+        assert_eq!(percent_decode("100%"), "100%");
+        // Signed out there is no cloud to ask.
+        let v = Voice::OpenAi { key: "t".into(), voice: "alloy".into(), model: "gpt-4o-mini-tts".into() };
+        if aina_net::cloud().is_none() {
+            assert!(cloud_line(&v, "filler.0", false, "", false).is_none());
+        }
+        assert!(cloud_line(&Voice::System { name: String::new(), lang: "id".into() }, "filler.0", false, "", false).is_none());
     }
 }

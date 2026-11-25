@@ -32,7 +32,8 @@ async function load() {
   $('realtimeBox').hidden = $('voiceEngine').value !== 'realtime';
   $('tts').value = c.tts;
   $('openaiVoice').value = c.openaiVoice;
-  $('ptt').value = c.pttCombo.join('+');
+  const talkKeys = c.pttCombo?.length ? c.pttCombo : ['Ctrl', 'Meta'];
+  $('ptt').value = talkKeys.join('+');
   $('dict').value = (c.dictationCombo || []).join('+');
   $('dictationCleanup').checked = c.dictationCleanup;
   $('wakeWord').checked = Boolean(c.wakeWord);
@@ -44,7 +45,7 @@ async function load() {
   $('brainEffort').value = c.brainEffort || 'medium';
   loadPomodoro(c);
   loadExtension();
-  $('pttHint').textContent = pretty(c.pttCombo.join('+'));
+  $('pttHint').textContent = pretty(talkKeys.join('+'));
   $('dictHint').textContent = c.dictationCombo?.length ? pretty(c.dictationCombo.join('+')) : 'mati';
   fillVoices(c.systemVoice);
   toggleVoiceBoxes();
@@ -347,10 +348,11 @@ function loadReminders(c) {
   prayerCity = c.prayerCity && c.prayerCity.id ? c.prayerCity : null;
   $('prayerChosen').textContent = prayerCity ? `Dipilih: ${prayerCity.name}${prayerCity.auto ? ' (ikut lokasi)' : ''}` : 'Belum ada kota.';
   $('prayerNotify').value = String(c.prayerNotify ?? 10);
+  $('prayerDhuha').checked = c.prayerDhuha === true;
   $('prayerBox').hidden = !$('prayerEnabled').checked;
 }
 function remindersPatch() {
-  const patch = { reminderView: $('reminderView').value, reminderDensity: $('reminderDensity').value, prayerNotify: Number($('prayerNotify').value) };
+  const patch = { reminderView: $('reminderView').value, reminderDensity: $('reminderDensity').value, prayerNotify: Number($('prayerNotify').value), prayerDhuha: $('prayerDhuha').checked };
   // Prayer times stay off until a city is chosen.
   patch.prayerEnabled = $('prayerEnabled').checked && Boolean(prayerCity);
   if (prayerCity) patch.prayerCity = prayerCity;
@@ -845,7 +847,13 @@ $('cloudDelete').onclick = async () => {
   }
 };
 for (const a of document.querySelectorAll('[data-open]')) a.onclick = (e) => (e.preventDefault(), aina.invoke('cloud:open', a.dataset.open));
-aina.on('cloud:changed', loadCloud);
+aina.on('cloud:changed', async () => {
+  loadCloud();
+  // Signing in fills "Nama panggilanmu" with the Google name (cloud.rs fill_name): shown here too,
+  // so saving this open window doesn't put the empty field back.
+  const f = $('userName');
+  if (!f.value.trim() && document.activeElement !== f) f.value = (await aina.invoke('config:get')).userName || '';
+});
 loadCloud();
 
 // aina v2 keeps dictations as notes (Markdown files) and shows them in the notch, instead of typing them.

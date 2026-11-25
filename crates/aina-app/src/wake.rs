@@ -170,7 +170,7 @@ fn on_wake(app: &AppHandle) {
     let en = crate::i18n::lang(app) == "en";
     let hour = chrono::Timelike::hour(&chrono::Local::now());
     let line = aina_llm::persona::wake_ack(en, hour, turn::since_last_turn(app), st.store.get("userName").as_str().unwrap_or(""), aina_llm::persona::rand());
-    talk::say(app, &line);
+    talk::say_line(app, &line);
     hands_free(app);
 }
 

@@ -1067,22 +1067,25 @@
       return null;
     }
   }
-  const rupiah = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
-  // What the box holds: { kind: 'words' | 'sum', value, sub } or null.
+  // A figure as shown: a plain number, never a currency (the box can't tell money from any other sum),
+  // keeping its decimals.
+  const figure = (n) => n.toLocaleString('id-ID', { maximumFractionDigits: 6 });
+  // What the box holds: { kind: 'words' | 'sum', value, sub } or null. A typed "rp" or "rupiah" is
+  // read past, so "rp 10.000 x 2" still works out.
   function readQuery(q) {
-    const t = q.trim().toLowerCase();
+    const t = q.trim().toLowerCase().replace(/(^|[^a-z])(?:rp\.?|rupiah)(?![a-z])/g, '$1').trim();
     if (!t) return null;
     const N = '([\\d.,]+\\s*(?:ribu|rb|juta|jt|miliar|triliun|k|m|t)?)';
     let m;
     // "15% dari 2.350.000", "15% x 2,35jt".
     if ((m = t.match(new RegExp(`^${N}\\s*%\\s*(?:dari|of|x|×|\\*)\\s*${N}$`)))) {
       const [a, b] = [readNumber(m[1]), readNumber(m[2])];
-      if (!Number.isNaN(a) && !Number.isNaN(b)) return { kind: 'sum', value: (a / 100) * b, sub: `${a}% × ${rupiah(b)}` };
+      if (!Number.isNaN(a) && !Number.isNaN(b)) return { kind: 'sum', value: (a / 100) * b, sub: `${a}% × ${figure(b)}` };
     }
     // "ppn 11% 1,5jt": the tax, and the total with it.
     if ((m = t.match(new RegExp(`^(?:ppn|pajak|tax)\\s*${N}\\s*%\\s*(?:dari\\s*)?${N}$`)))) {
       const [a, b] = [readNumber(m[1]), readNumber(m[2])];
-      if (!Number.isNaN(a) && !Number.isNaN(b)) return { kind: 'sum', value: (b * a) / 100, sub: fill(label('smartTax', 'PPN {p}% · total {t}'), { p: a, t: rupiah(b + (b * a) / 100) }) };
+      if (!Number.isNaN(a) && !Number.isNaN(b)) return { kind: 'sum', value: (b * a) / 100, sub: fill(label('smartTax', 'PPN {p}% · total {t}'), { p: a, t: figure(b + (b * a) / 100) }) };
     }
     // A number alone: spelled out.
     const alone = readNumber(t);
@@ -1090,6 +1093,8 @@
     const v = evalSum(t);
     return v === null ? null : { kind: 'sum', value: v, sub: q.trim() };
   }
+  // The words for an answer, for a whole number only (no words for 2,5).
+  const answerWords = (r) => (Number.isInteger(r.value) ? terbilang(r.value) : '');
   // Indonesian words for a whole number, to the trillions: "dua juta tiga ratus lima puluh ribu".
   function terbilang(n) {
     const one = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
@@ -1162,7 +1167,8 @@
   async function copySmart(which) {
     const r = readQuery(smart.q);
     if (!r) return;
-    const text = which === 'words' ? terbilang(r.value) + (r.kind === 'sum' ? ' rupiah' : '') : r.kind === 'sum' ? rupiah(r.value) : Math.round(r.value).toLocaleString('id-ID');
+    const text = which === 'words' ? answerWords(r) : figure(r.value);
+    if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -1197,11 +1203,11 @@
       box.append(ex);
       return box;
     }
-    const words = terbilang(r.value);
-    const main = r.kind === 'sum' ? rupiah(r.value) : Math.round(r.value).toLocaleString('id-ID');
+    const words = answerWords(r);
+    const main = figure(r.value);
     const col = div('scol');
     col.append(div('ssub', r.sub), div('smain', main));
-    if (words) col.append(div('swords', r.kind === 'sum' ? `${words} rupiah` : words));
+    if (words) col.append(div('swords', words));
     const act = div('sact');
     const c1 = localButton('smartcopy:main', smart.copied === 'main' ? label('smartCopied', 'Disalin') : label('smartCopy', 'Salin'), smart.copied === 'main' ? 'chip done' : 'primary');
     act.append(c1);
@@ -1276,7 +1282,7 @@
     );
     // Focus: the work going on and how long it has run, or how to start one.
     const f = st.focusInfo?.session;
-    grid.append(homeTile('focus', icon('folder', 13), 'k-focus', f ? fmtDur(now - f.startedAt) : '', f ? f.name : label('focusStart', 'Mulai fokus'), f ? label('focusActive', 'Fokus aktif') : label('homeFocusHint', 'Pilih folder atau konteks kerja'), Boolean(f)));
+    grid.append(homeTile('go', icon('folder', 13), 'k-focus', f ? fmtDur(now - f.startedAt) : '', f ? f.name : label('focusStart', 'Mulai fokus'), f ? label('focusActive', 'Fokus aktif') : label('homeFocusHint', 'Pilih folder atau konteks kerja'), Boolean(f)));
     const m = st.media;
     grid.append(homeTile('media', icon('music', 13), `k-media${m?.playing ? ' playing' : ''}`, '', m ? m.title : label('musicNone', 'Tidak ada musik diputar'), m ? [m.artist, m.app].filter(Boolean).join(' · ') : label('homeMusicHint', 'Putar lagu, kontrolnya ada di sini'), Boolean(m)));
     return grid;
@@ -1293,22 +1299,45 @@
     return { id: 'home', icon: 'home', items: [it] };
   }
   // Notes & knowledge: their counts as two tiles, each opening its list (the panel main sends).
-  function libraryPage(st) {
-    const it = div('item widget libpage');
+  // Actions: what starts something, on one page in place of Focus, Notes & knowledge and Shortcuts.
+  // On top the focus (the running one, or how to start one); then Dictate (a click starts it, the
+  // next saves it) beside the notes it made and, when there are any, the knowledge; then the
+  // shortcuts. A running focus or dictation keeps the badge on the tab.
+  function actionsPage(st, fi) {
+    const items = [];
+    let live = false;
+    if (fi?.session) {
+      items.push(focusItem(fi, st));
+      live = true;
+    } else if (fi) items.push(focusIdle(fi));
+    else if (st.focus) {
+      items.push(rowItem(iconBox('folder', 'green'), st.focus, LABELS.focus || 'Fokus', button('endFocus', LABELS.endFocus || 'Selesai', '', 'check')));
+      live = true;
+    }
+    const it = div('item widget libpage actpage');
     const grid = div('hgrid');
-    const tile = (act, ico, cls, n, title, sub) => {
-      const t = homeTile('', ico, cls, String(n), title, sub, n > 0);
+    const tile = (act, ico, cls, big, title, sub, has) => {
+      const t = homeTile('', ico, cls, big, title, sub, has);
       t.dataset.act = act;
       t.setAttribute('role', 'button');
-      t.style.cursor = 'pointer';
       return t;
     };
+    const rec = Boolean(st.dictating);
+    if (rec) live = true;
     grid.append(
-      tile('notes', icon('note', 13), 'k-notes', st.notes || 0, label('notes', 'Catatan'), label('libNotesHint', 'Hasil dikte, tersimpan di Dokumen')),
-      tile('knowledge', icon('book', 13), 'k-know', st.knowledge || 0, label('knowledge', 'Pengetahuan'), label('libKnowHint', 'File yang kamu drop ke notch'))
+      tile('dictate', icon('mic', 13), `k-dict${rec ? ' rec' : ''}`, rec ? '●' : '', rec ? label('dictateStop', 'Selesai dikte') : label('dictate', 'Dikte'), rec ? label('dictateLive', 'Merekam… klik untuk simpan') : label('dictateHint', 'Klik untuk mulai, klik lagi untuk simpan'), true),
+      tile('notes', icon('note', 13), 'k-notes', String(st.notes || 0), label('notes', 'Catatan'), label('libNotesHint', 'Hasil dikte, tersimpan di Dokumen'), st.notes > 0)
     );
+    if (st.knowledge) grid.append(tile('knowledge', icon('book', 13), 'k-know', String(st.knowledge), label('knowledge', 'Pengetahuan'), label('libKnowHint', 'File yang kamu drop ke notch'), true));
+    grid.style.gridTemplateColumns = `repeat(${grid.children.length}, minmax(0, 1fr))`;
     it.append(grid);
-    return { id: 'library', icon: 'book', items: [it] };
+    items.push(it);
+    if (st.shortcuts.length) {
+      const sc = div('shortcuts');
+      sc.append(...st.shortcuts.map((s) => button(s.id, s.label, 'tile', 'aina')));
+      items.push(sc);
+    }
+    return { id: 'go', icon: 'aina', live, items };
   }
   // ---- weather (the left side) ----
   // Small motion icons drawn here (no assets): the sun's rays turn, clouds drift, rain and snow fall,
@@ -1766,8 +1795,8 @@
   }
   // One widget per page, so the peek grows sideways instead of down; the page tabs switch them. The
   // pages keep one order, as in the notch design: Home, Timer & pomodoro, Reminder Center, Prayer
-  // times, Music, Focus, Notes & knowledge, Tasks, then the shortcuts. A page with nothing to show
-  // (no prayer city, no notes, no tasks) is left out. `live` pages (still running) keep a badge on
+  // times, Music, Tasks, then Actions (focus, dictation and notes, knowledge, shortcuts). A page with
+  // nothing to show (no prayer city, no tasks) is left out. `live` pages (still running) keep a badge on
   // their tab.
   function peekPages(st, locale) {
     const pages = [];
@@ -1794,21 +1823,11 @@
     if (I.cal?.prayer?.enabled && I.cal.prayer.city) pages.push(prayerPage(I.cal.prayer, Date.now()));
     // Music: always there to open from its tab, with a stand-in when nothing plays.
     pages.push({ id: 'media', icon: 'music', live: Boolean(st.media?.playing), items: [st.media ? mediaItem(st.media) : mediaIdle()] });
-    // Focus: the running one, or how to start one. An older main (no focusInfo) shows the folder.
-    if (fi?.session) pages.push({ id: 'focus', icon: 'folder', live: true, items: [focusItem(fi, st)] });
-    else if (fi) pages.push({ id: 'focus', icon: 'folder', items: [focusIdle(fi)] });
-    else if (st.focus) pages.push({ id: 'focus', icon: 'folder', items: [rowItem(iconBox('folder', 'green'), st.focus, LABELS.focus || 'Fokus', button('endFocus', LABELS.endFocus || 'Selesai', '', 'check'))] });
-    // Notes & knowledge, their page opening their lists.
-    if (st.notes || st.knowledge) pages.push(libraryPage(st));
     // Background tasks (a task that needs the person shows on Home and keeps a badge on this tab).
     const tasks = st.tasks ? tasksPage(st.tasks) : st.agents.length ? agentsPage(st) : null;
     if (tasks) pages.push(tasks);
-    const tiles = st.shortcuts.map((s) => button(s.id, s.label, 'tile', 'bolt'));
-    if (tiles.length) {
-      const sc = div('shortcuts');
-      sc.append(...tiles);
-      pages.push({ id: 'go', icon: 'bolt', items: [sc] });
-    }
+    // Actions: the focus, dictation and notes, knowledge and the shortcuts.
+    pages.push(actionsPage(st, fi));
     // Home leads (the page the peek opens on); it is built once the others are known.
     pageIds = ['home', ...pages.map((p) => p.id)];
     pages.unshift(homePage(st));
@@ -1854,7 +1873,7 @@
     focus: ['pageFocus', 'Mode Fokus'],
     library: ['pageLibrary', 'Catatan & Pengetahuan'],
     tasks: ['pageTasks', 'Tugas'],
-    go: ['pageShortcuts', 'Pintasan'],
+    go: ['pageActions', 'Aksi'],
   };
   const pageTitle = (id) => (PAGE_TITLE[id] ? label(...PAGE_TITLE[id]) : '');
   function updateHeader(pages) {
@@ -2001,14 +2020,14 @@
     addEventListener('pointerup', up);
     addEventListener('pointercancel', up);
   });
-  // Each page's tab icon from react-icons (reacticons.js): [at rest, open].
+  // Each page's tab icon from react-icons (reacticons.js): [at rest, open]. Pages not listed (Actions:
+  // the aina mark) use their own line icon.
   const PAGE_ICONS = {
     timer: ['IoTimerOutline', 'IoTimer'],
     media: ['IoMusicalNotesOutline', 'IoMusicalNotes'],
     tasks: ['IoSparklesOutline', 'IoSparkles'],
     focus: ['IoFolderOpenOutline', 'IoFolderOpen'],
     later: ['IoNotificationsOutline', 'IoNotifications'],
-    go: ['IoFlashOutline', 'IoFlash'],
   };
   // The clock as hours, a separator that ticks, and minutes; rebuilt only when the minute changes.
   function setClock(c) {

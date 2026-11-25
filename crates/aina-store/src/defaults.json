@@ -16,8 +16,8 @@
   "systemVoice": "",
   "openaiVoice": "alloy",
   "openaiTtsModel": "gpt-4o-mini-tts",
-  "pttCombo": ["Ctrl", "Alt"],
-  "dictationCombo": ["Ctrl", "Meta"],
+  "pttCombo": ["Ctrl", "Meta"],
+  "dictationCombo": ["Ctrl", "Alt"],
   "dictationCleanup": true,
   "maxGuidedRounds": 8,
   "computerControl": false,
@@ -55,6 +55,8 @@
   "agentFileAccess": false,
   "wakeWord": false,
   "userName": "",
+  "userNameFromAccount": false,
+  "keysSwapped": false,
   "voiceEngine": "classic",
   "realtimeModel": "gpt-realtime-2.1-mini",
   "realtimeVoice": "marin",
@@ -74,5 +76,6 @@
   "reminderView": "agenda",
   "reminderDensity": "compact",
   "prayerEnabled": false,
-  "prayerNotify": 10
+  "prayerNotify": 10,
+  "prayerDhuha": false
 }

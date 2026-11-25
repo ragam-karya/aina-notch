@@ -93,19 +93,22 @@ pub fn prefetch(app: &AppHandle) {
         let st = state(&a);
         let en = crate::i18n::lang(&a) == "en";
         let name = st.store.get("userName").as_str().unwrap_or("").to_string();
-        // The out-of-credits line too, while it can still be fetched, so saying it later costs nothing.
+        // The out-of-credits line too. Each is fetched once per voice (free on aina Cloud) and kept on
+        // disk, so a start normally asks for nothing.
         let mut lines = persona::ack_lines(en, &name);
         if crate::cloud::signed_in(&a) {
-            lines.push(crate::cloud::out_line(en).to_string());
+            lines.push(persona::out_line(en));
         }
         for line in lines {
             // Paused while a question is being answered, so it never competes with a real reply.
             while turn::phase(&a) != "idle" {
                 std::thread::sleep(Duration::from_millis(500));
             }
-            let Some(v) = talk::voice(&a) else { return };
-            if st.tts.cached(&line, &v).is_none() && st.tts.synthesize(&line, &v).is_err() {
-                return; // no network or no key: try again next time
+            if talk::voice(&a).is_none_or(|v| matches!(v, aina_voice::tts::Voice::System { .. })) {
+                return; // a Windows voice needs nothing fetched
+            }
+            if talk::line_clip(&a, &line).is_none() {
+                return; // offline, or the cloud's daily cap: try again next time
             }
         }
     });
@@ -204,7 +207,7 @@ pub fn on_start(app: &AppHandle) {
             return; // the user already started something: no greeting over it
         }
         crate::notch::pin_display(&a);
-        talk::say(&a, &line);
+        talk::say_line(&a, &line); // free, and kept on disk after the first time
         // Only the notch's "speaking" is undone; a question asked meanwhile keeps its phase.
         if turn::phase(&a) == "idle" {
             windows::broadcast(&a, "linger", 6000);

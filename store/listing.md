@@ -11,7 +11,7 @@ Screenshot: `store/screenshots/` (1366×768, urut 1–5).
 aina
 
 ### Description
-aina adalah asisten AI untuk Windows yang paham layarmu. Tahan Ctrl+Alt, bicara, lalu lepas. aina melihat bagian layar yang sedang kamu kerjakan, menjawab dengan suara, dan menunjuk langsung ke tombol yang kamu cari.
+aina adalah asisten AI untuk Windows yang paham layarmu. Tahan Ctrl+Win, bicara, lalu lepas. aina melihat bagian layar yang sedang kamu kerjakan, menjawab dengan suara, dan menunjuk langsung ke tombol yang kamu cari.
 
 Tidak perlu pindah ke jendela chat atau menjelaskan isi layar panjang-panjang. Tanya saja "tombol export-nya di mana?" dan kursor biru aina terbang ke tombol itu. aina juga bisa menyorot, melingkari, dan menulis langsung di atas aplikasi yang sedang kamu pakai, lalu memandumu klik demi klik.
 
@@ -24,14 +24,14 @@ Notch di tepi atas layar juga menyimpan hal-hal kecil sehari-hari: jam dan cuaca
 Privasi dulu: screenshot dan suaramu hanya diproses saat kamu bertanya dan tidak disimpan di PC. aina diam sampai kamu memanggilnya.
 
 Cara pakai:
-• Tahan Ctrl+Alt lalu bicara, atau ucapkan "Hey aina".
-• Tekan Ctrl+Win untuk mendikte catatan.
+• Tahan Ctrl+Win lalu bicara, atau ucapkan "Hey aina".
+• Tekan Ctrl+Alt untuk mendikte catatan.
 • Esc menghentikan aina kapan saja.
 
 aina memakai aina Cloud: masuk dengan akun Google dan dapat kredit gratis untuk mencoba. Setelah itu tersedia langganan bulanan atau Top-Up. Butuh koneksi internet. Mendukung Bahasa Indonesia dan Inggris.
 
 ### Product features (satu baris per fitur, maks. 200 karakter)
-1. Tanya tentang apa pun di layar dengan suara: tahan Ctrl+Alt atau ucapkan "Hey aina".
+1. Tanya tentang apa pun di layar dengan suara: tahan Ctrl+Win atau ucapkan "Hey aina".
 2. Kursor biru aina menunjuk langsung ke tombol yang kamu cari.
 3. Sorotan, lingkaran, dan tulisan tangan langsung di atas aplikasi yang sedang kamu pakai.
 4. Panduan klik demi klik sampai pekerjaanmu selesai.
@@ -40,7 +40,7 @@ aina memakai aina Cloud: masuk dengan akun Google dan dapat kredit gratis untuk 
 7. Sprite: helper latar belakang untuk riset, file, dan coding yang melapor di notch.
 8. Notch pintar: jam, cuaca, timer, Pomodoro, dan lagu yang sedang diputar.
 9. Pengingat dan Google Calendar langsung dari notch.
-10. Dikte catatan dengan Ctrl+Win; dirapikan dan diringkas otomatis.
+10. Dikte catatan dengan Ctrl+Alt; dirapikan dan diringkas otomatis.
 11. Taruh file di notch untuk diunggah ke Google Drive.
 12. Mode fokus: aina bekerja di dalam satu folder proyek.
 13. Tersambung ke Gmail, Google Calendar, Drive, Docs, dan Sheets.
@@ -74,7 +74,7 @@ Ragam Karya
 aina
 
 ### Description
-aina is an AI assistant for Windows that understands your screen. Hold Ctrl+Alt, speak, and let go. aina looks at what you're working on, answers out loud, and points right at the button you're looking for.
+aina is an AI assistant for Windows that understands your screen. Hold Ctrl+Win, speak, and let go. aina looks at what you're working on, answers out loud, and points right at the button you're looking for.
 
 No switching to a chat window, no describing your screen. Just ask "where's the export button?" and aina's blue cursor flies to it. aina can also highlight, circle, and write right on top of the app you're using, then guide you click by click.
 
@@ -87,14 +87,14 @@ The notch at the top of your screen also keeps the small things close: the time 
 Privacy first: your screenshots and voice are only processed when you ask, and never stored on your PC. aina stays quiet until you call it.
 
 How to use:
-• Hold Ctrl+Alt and speak, or say "Hey aina".
-• Press Ctrl+Win to dictate a note.
+• Hold Ctrl+Win and speak, or say "Hey aina".
+• Press Ctrl+Alt to dictate a note.
 • Esc stops aina at any time.
 
 aina runs on aina Cloud: sign in with Google and get free credits to try it. After that, choose a monthly plan or a Top-Up. Requires an internet connection. Works in Indonesian and English.
 
 ### Product features
-1. Ask about anything on your screen by voice: hold Ctrl+Alt or say "Hey aina".
+1. Ask about anything on your screen by voice: hold Ctrl+Win or say "Hey aina".
 2. aina's blue cursor points right at the button you're looking for.
 3. Highlights, circles, and handwriting right on top of the app you're using.
 4. Click-by-click guidance until the job is done.
@@ -103,7 +103,7 @@ aina runs on aina Cloud: sign in with Google and get free credits to try it. Aft
 7. Sprites: background helpers for research, files, and coding that report in the notch.
 8. Smart notch: time, weather, timers, Pomodoro, and what's playing.
 9. Reminders and Google Calendar right from the notch.
-10. Dictate notes with Ctrl+Win; tidied up and summarized automatically.
+10. Dictate notes with Ctrl+Alt; tidied up and summarized automatically.
 11. Drop files on the notch to upload them to Google Drive.
 12. Focus mode: aina works inside one project folder.
 13. Connects to Gmail, Google Calendar, Drive, Docs, and Sheets.

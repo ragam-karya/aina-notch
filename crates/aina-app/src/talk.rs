@@ -8,6 +8,7 @@
 // Automation names what is under the mark. On release the question is transcribed and goes to
 // turn.rs; Esc, Enter and a spoken answer also answer a question aina is waiting on.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::thread::sleep;
@@ -18,6 +19,7 @@ use aina_input::hook::{self, Input};
 use aina_input::hotkeys::{Event, Hotkeys, Kind};
 use aina_screen::capture::{Shot, capture_all};
 use aina_screen::{Display, Rect};
+use aina_llm::persona::Line;
 use aina_voice::tts::Voice;
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
@@ -104,6 +106,9 @@ fn overlay_at(app: &AppHandle, x: f64, y: f64) -> Option<String> {
         .map(|o| o.label.clone())
 }
 
+// The talk keys are down only to end a running dictation (see start).
+static ENDS_DICTATION: AtomicBool = AtomicBool::new(false);
+
 // The hotkey state machine; Settings reconfigures it in place when a combo changes.
 static KEYS: LazyLock<Mutex<Hotkeys>> = LazyLock::new(|| Mutex::new(Hotkeys::default()));
 
@@ -111,6 +116,20 @@ static KEYS: LazyLock<Mutex<Hotkeys>> = LazyLock::new(|| Mutex::new(Hotkeys::def
 pub fn configure_keys(app: &AppHandle) {
     let store = &state(app).store;
     let combo = |k: &str| store.get(k).as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect::<Vec<_>>()).unwrap_or_default();
+    // Asking moved to Ctrl + Win and dictation to Ctrl + Alt: a config that still has the old pair
+    // (Ctrl + Alt to ask, Ctrl + Win to dictate) is swapped once, on disk too, so Settings and the tray
+    // tooltip say what the keys really are. Keys the person chose themselves are kept.
+    if store.get("keysSwapped").as_bool() != Some(true) {
+        let mut patch = serde_json::Map::new();
+        if combo("pttCombo") == ["Ctrl", "Alt"] && combo("dictationCombo") == ["Ctrl", "Meta"] {
+            patch.insert("pttCombo".into(), json!(["Ctrl", "Meta"]));
+            patch.insert("dictationCombo".into(), json!(["Ctrl", "Alt"]));
+        }
+        patch.insert("keysSwapped".into(), json!(true));
+        if let Err(e) = store.remember(&patch) {
+            eprintln!("[talk] swapping the talk and dictation keys: {e}");
+        }
+    }
     KEYS.lock().unwrap().configure(&combo("pttCombo"), &combo("dictationCombo"));
 }
 
@@ -126,7 +145,12 @@ pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         for input in events {
             let fired = match input {
-                Input::Key { vk, down: true } => KEYS.lock().unwrap().key_down(vk),
+                Input::Key { vk, down: true } => {
+                    let mut keys = KEYS.lock().unwrap();
+                    let mut fired = keys.forget_released(hook::is_down);
+                    fired.extend(keys.key_down(vk));
+                    fired
+                }
                 Input::Key { vk, down: false } => KEYS.lock().unwrap().key_up(vk),
                 Input::MouseDown { x, y, .. } => {
                     if let Some((_, ox, oy)) = to_overlay(&app, x, y) {
@@ -140,6 +164,15 @@ pub fn start(app: AppHandle) {
                     eprintln!("[keys] {e:?}");
                 }
                 match e {
+                    // The talk keys pressed while a dictation runs only end (and save) it: that press
+                    // is not a question, so its release and any cancel are not one either. Without
+                    // this the realtime engine took the release for a tap and opened a conversation.
+                    Event::Start(Kind::Ptt) if crate::dictation::dictating() => {
+                        ENDS_DICTATION.store(true, Ordering::SeqCst);
+                        let app = app.clone();
+                        std::thread::spawn(move || crate::dictation::up(&app));
+                    }
+                    Event::End(Kind::Ptt) | Event::Cancel(Kind::Ptt) if ENDS_DICTATION.swap(false, Ordering::SeqCst) => {}
                     // Through the realtime engine when it is on (it falls back to the classic path).
                     Event::Start(Kind::Ptt) => crate::realtime::talk_down(&app),
                     Event::End(Kind::Ptt) => {
@@ -615,19 +648,62 @@ pub fn say(app: &AppHandle, text: &str) {
     say_clip(app, text, clip);
 }
 
-/// Speaks a line without calling any paid service: the voice's clip fetched earlier (settings::prefetch),
-/// else Windows' own voice.
-pub fn say_free(app: &AppHandle, text: &str) {
-    let st = state(app);
-    let cached = voice(app).and_then(|v| st.tts.cached(text, &v));
-    let clip = match cached {
-        Some(c) => Ok(c),
-        None => {
-            let name = st.store.get("systemVoice").as_str().unwrap_or("").to_string();
-            st.tts.synthesize(text, &Voice::System { name, lang: crate::i18n::lang(app).to_string() })
-        }
+/// Where aina's fixed lines are kept (aina_voice::tts::disk).
+fn lines_dir() -> std::path::PathBuf {
+    aina_store::data_dir().join("voice-cache")
+}
+
+/// The clip of one of aina's fixed lines (aina_llm::persona::Line: the greeting, the wake replies, the
+/// filler, the out-of-credits line) and its text as spoken, never through a paid call: the one kept on
+/// disk, else spoken by aina Cloud for free (POST /v1/voice/line) and kept. With the user's own keys
+/// (signed out) it is fetched with those, and kept too. None: a Windows voice or none, or no clip to be
+/// had right now (offline, the cloud's daily cap).
+pub fn line_clip(app: &AppHandle, line: &Line) -> Option<(aina_voice::Clip, String)> {
+    let v = voice(app).filter(|v| !matches!(v, Voice::System { .. }))?;
+    let dir = lines_dir();
+    if let Some(kept) = aina_voice::tts::disk::load(&dir, &v, &line.text) {
+        return Some(kept);
+    }
+    let got = match aina_voice::tts::cloud_line(&v, &line.id, line.en, &line.name, line.wake) {
+        Some(free) => free,
+        None => state(app).tts.synthesize(&line.text, &v).map(|c| (c, String::new())),
     };
-    say_clip(app, text, Some(clip));
+    match got {
+        Ok((clip, spoken)) => {
+            let spoken = if spoken.is_empty() { line.text.clone() } else { spoken };
+            if let Err(e) = aina_voice::tts::disk::save(&dir, &v, &line.text, &clip, &spoken) {
+                eprintln!("[voice] keeping \"{}\": {e}", line.id);
+            }
+            Some((clip, spoken))
+        }
+        Err(e) => {
+            eprintln!("[voice] {}: {e}", line.id);
+            None
+        }
+    }
+}
+
+/// A fixed line's clip if it is on disk already (no network): the filler plays only when ready.
+pub fn kept_line(app: &AppHandle, line: &Line) -> Option<(aina_voice::Clip, String)> {
+    let v = voice(app)?;
+    aina_voice::tts::disk::load(&lines_dir(), &v, &line.text)
+}
+
+/// Speaks one of aina's fixed lines without costing credits: its clip (line_clip), else a Windows
+/// voice; with the voice off it only shows.
+pub fn say_line(app: &AppHandle, line: &Line) {
+    if voice(app).is_none() {
+        return say_clip(app, &line.text, None);
+    }
+    match line_clip(app, line) {
+        Some((clip, spoken)) => say_clip(app, &spoken, Some(Ok(clip))),
+        None => {
+            let st = state(app);
+            let name = st.store.get("systemVoice").as_str().unwrap_or("").to_string();
+            let lang = if line.en { "en" } else { "id" };
+            say_clip(app, &line.text, Some(st.tts.synthesize(&line.text, &Voice::System { name, lang: lang.into() })));
+        }
+    }
 }
 
 fn say_clip(app: &AppHandle, text: &str, clip: Option<Result<aina_voice::Clip, String>>) {

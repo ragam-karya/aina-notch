@@ -1,4 +1,4 @@
-// Dictation (Ctrl+Win by default). A quick press starts it and the next press ends it, so the hands
+// Dictation (Ctrl+Alt by default). A quick press starts it and the next press ends it, so the hands
 // are free for other work in between; holding the keys works too (released = done). The words are
 // saved as a note: a Markdown file in Documents\aina\Dikte (notes.rs), and shown in the notch. Claude Haiku
 // tidies them first when that's on (punctuation, filler words, spoken corrections) and sums up a long
@@ -73,6 +73,8 @@ pub fn down(app: &AppHandle) {
     if crate::talk::listening(app) {
         return; // already holding the talk keys
     }
+    // A realtime conversation keeps its own microphone open and would answer the dictation: end it.
+    crate::realtime::stop(app);
     turn::cancel(app);
     *STARTED.lock().unwrap() = Some(Instant::now());
     crate::notch::pin_display(app);
@@ -80,6 +82,7 @@ pub fn down(app: &AppHandle) {
     windows::broadcast(app, "mode", "dictation");
     turn::chime(app, "start");
     st.mic.start();
+    crate::notch::send_status(app); // the Actions page's Dictate tile shows it recording
     let run = RUN.fetch_add(1, Ordering::SeqCst) + 1;
     let a = app.clone();
     std::thread::spawn(move || {
@@ -96,6 +99,7 @@ pub fn cancel(app: &AppHandle) {
         let _ = state(app).mic.stop();
         windows::broadcast(app, "mode", "companion");
         turn::set_phase(app, "idle");
+        crate::notch::send_status(app);
     }
 }
 
@@ -105,6 +109,7 @@ pub fn up(app: &AppHandle) {
     let st = state(app);
     let rec = st.mic.stop();
     windows::broadcast(app, "mode", "companion");
+    crate::notch::send_status(app);
     let held = started.elapsed();
     let rec = match rec {
         Ok(r) if held.as_millis() >= 350 => r,
@@ -138,6 +143,7 @@ pub fn up(app: &AppHandle) {
     let lang = crate::i18n::detect_lang(&text).unwrap_or(if crate::i18n::lang(app) == "en" { "en" } else { "id" });
     let note = Note { created: chrono::Local::now(), duration_s: rec.duration.as_secs(), lang, summary: summary.as_deref(), text: &text };
     let saved = notes::save(&dir(app), &note);
+    crate::notch::send_status(app); // the note count on the Actions page
     turn::set_phase(app, "idle");
     match saved {
         Ok(file) => {
