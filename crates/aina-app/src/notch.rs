@@ -217,6 +217,17 @@ pub fn act(app: &AppHandle, id: &str) {
     if let Some(n) = id.strip_prefix("shortcut:").and_then(|n| n.parse().ok()) {
         return crate::apps::shortcut(app, n);
     }
+    // The Actions page's Dictate tile: a click starts a dictation and the next one saves it, like a
+    // quick press of the dictation keys.
+    if id == "dictate" {
+        if crate::dictation::dictating() {
+            let app = app.clone();
+            std::thread::spawn(move || crate::dictation::up(&app));
+        } else {
+            crate::dictation::down(app);
+        }
+        return send_status(app);
+    }
     if id == "notes" {
         return show_notes(app);
     }
@@ -398,6 +409,7 @@ pub fn status(app: &AppHandle) -> Value {
         "focusInfo": crate::focus::status(app),
         "media": aina_apps::media::LAST.lock().unwrap().clone(),
         "shortcuts": shortcuts,
+        "dictating": crate::dictation::dictating(),
         "cloud": crate::cloud::notch_usage(),
         "notes": crate::notes::count(&crate::dictation::dir(app)),
         "knowledge": crate::knowledge::items(app).len(),
