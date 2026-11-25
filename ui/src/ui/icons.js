@@ -21,6 +21,14 @@
     music: [['path', { d: 'M9 18V5.5l11-2v12.5' }], ['circle', { cx: 6.5, cy: 18, r: 2.5 }], ['circle', { cx: 17.5, cy: 16, r: 2.5 }]],
     spark: [['path', { d: 'M12 3.5 13.9 9a1.5 1.5 0 0 0 1 1L20.5 12l-5.6 1.9a1.5 1.5 0 0 0-1 1L12 20.5 10.1 15a1.5 1.5 0 0 0-1-1L3.5 12l5.6-1.9a1.5 1.5 0 0 0 1-1z' }]],
     bolt: [['path', { d: 'M13 2.5 4.5 13.5H12l-1 8 8.5-11H12z' }]],
+    // "ai" from the aina wordmark (assets/brand/aina-logo.png): the a (a ring and its stem) and the i in
+    // the text color, the i's dot in the brand orange.
+    aina: [
+      ['path', { d: 'M8 8.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 1 0 0-13zM8 11.6a3.4 3.4 0 1 1 0 6.8 3.4 3.4 0 1 1 0-6.8z', fill: 1, 'fill-rule': 'evenodd' }],
+      ['rect', { x: 12.1, y: 8.5, width: 2.6, height: 13, rx: 0.4, fill: 1 }],
+      ['rect', { x: 17.2, y: 8.5, width: 2.6, height: 13, rx: 0.4, fill: 1 }],
+      ['circle', { cx: 19.3, cy: 4.3, r: 2.3, fill: '#ff7a00' }],
+    ],
     home: [['path', { d: 'M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19z' }], ['path', { d: 'M9.5 20.5v-6h5v6' }]],
     plus: [['path', { d: 'M12 5v14M5 12h14' }]],
     send: [['path', { d: 'M5 12h13M13 6l6 6-6 6' }]],
@@ -75,7 +83,7 @@
     for (const [tag, attrs] of ICONS[name] || []) {
       const n = document.createElementNS(NS, tag);
       for (const [k, v] of Object.entries(attrs)) if (k !== 'fill') n.setAttribute(k, v);
-      if (attrs.fill) n.setAttribute('fill', 'currentColor');
+      if (attrs.fill) n.setAttribute('fill', attrs.fill === 1 ? 'currentColor' : attrs.fill); // a color string keeps its own color
       else {
         n.setAttribute('fill', 'none');
         n.setAttribute('stroke', 'currentColor');

@@ -82,6 +82,7 @@ pub fn down(app: &AppHandle) {
     windows::broadcast(app, "mode", "dictation");
     turn::chime(app, "start");
     st.mic.start();
+    crate::notch::send_status(app); // the Actions page's Dictate tile shows it recording
     let run = RUN.fetch_add(1, Ordering::SeqCst) + 1;
     let a = app.clone();
     std::thread::spawn(move || {
@@ -98,6 +99,7 @@ pub fn cancel(app: &AppHandle) {
         let _ = state(app).mic.stop();
         windows::broadcast(app, "mode", "companion");
         turn::set_phase(app, "idle");
+        crate::notch::send_status(app);
     }
 }
 
@@ -107,6 +109,7 @@ pub fn up(app: &AppHandle) {
     let st = state(app);
     let rec = st.mic.stop();
     windows::broadcast(app, "mode", "companion");
+    crate::notch::send_status(app);
     let held = started.elapsed();
     let rec = match rec {
         Ok(r) if held.as_millis() >= 350 => r,
@@ -140,6 +143,7 @@ pub fn up(app: &AppHandle) {
     let lang = crate::i18n::detect_lang(&text).unwrap_or(if crate::i18n::lang(app) == "en" { "en" } else { "id" });
     let note = Note { created: chrono::Local::now(), duration_s: rec.duration.as_secs(), lang, summary: summary.as_deref(), text: &text };
     let saved = notes::save(&dir(app), &note);
+    crate::notch::send_status(app); // the note count on the Actions page
     turn::set_phase(app, "idle");
     match saved {
         Ok(file) => {

@@ -611,6 +611,11 @@
   #island .peek .libpage .hgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1; }
   #island .peek .libpage .htile.k-notes { --k: var(--c-warn); }
   #island .peek .libpage .htile.k-know { --k: var(--c-music); }
+  /* Actions: the Dictate tile (red and pulsing while it records) beside the notes and knowledge. */
+  #island .peek .actpage .hgrid { min-height: 74px; }
+  #island .peek .actpage .htile.k-dict { --k: var(--c-accent); }
+  #island .peek .actpage .htile.k-dict.rec { --k: #ff5a64; }
+  #island .peek .actpage .htile.k-dict.rec .big { color: #ff5a64; animation: twinkle 1.4s ease-in-out infinite; }
   #island .peek .htile .sub { color: var(--c-sub); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #island .peek .htile.k-tasks.urgent { --k: var(--c-warn); }
   #island .peek .htile.k-media.playing .hico { animation: pulse 2.4s ease-in-out infinite; }
